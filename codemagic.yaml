@@ -6,18 +6,21 @@ workflows:
     scripts:
       - name: Recreate Flutter structure safely
         script: |
-          # Move o seu código original para uma pasta temporária para protegê-lo
           mkdir temp_lib
           cp -r lib/* temp_lib/
           cp pubspec.yaml temp_pubspec.yaml
 
-          # Cria a estrutura necessária com o nome correto
           flutter create . --project-name=vapor_manager --overwrite --platforms=android
 
-          # MUDA O NOME DO APP AQUI (Vai aparecer embaixo do ícone no celular)
+          # 1. Muda o Nome do App
           sed -i '' 's/android:label=".*"/android:label="Vapor Manager"/' android/app/src/main/AndroidManifest.xml
+          
+          # 2. Injeta a Permissão de Biometria no Android
+          sed -i '' 's/<application/<uses-permission android:name="android.permission.USE_BIOMETRIC"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          
+          # 3. Transforma a atividade do Android para aceitar Biometria
+          sed -i '' 's/FlutterActivity/FlutterFragmentActivity/g' android/app/src/main/kotlin/com/example/vapor_manager/MainActivity.kt
 
-          # Devolve o SEU código para o lugar certo
           rm -rf lib/*
           cp -r temp_lib/* lib/
           cp temp_pubspec.yaml pubspec.yaml
@@ -26,7 +29,6 @@ workflows:
           flutter packages pub get
       - name: Generate App Icon
         script: |
-          # Esse comando injeta a sua imagem assets/icone.png dentro do Android
           flutter pub run flutter_launcher_icons
       - name: Build Android APK
         script: |
