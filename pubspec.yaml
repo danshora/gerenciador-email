@@ -28,5 +28,5 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icone.png
+  image_path: "assets/icone.png"
   remove_alpha_ios: true
