@@ -10,7 +10,13 @@ class AccountManager extends ChangeNotifier {
   List<Account> _accounts = [];
   bool _isLoading = true;
 
-  List<Account> get accounts => _accounts;
+  // --- ALTERADO: ORGANIZA PARA MOSTRAR OS FAVORITOS SEMPRE NO TOPO ---
+  List<Account> get accounts {
+    final favs = _accounts.where((a) => a.isFavorite).toList();
+    final nonFavs = _accounts.where((a) => !a.isFavorite).toList();
+    return [...favs, ...nonFavs];
+  }
+  
   bool get isLoading => _isLoading;
 
   AccountManager() {
@@ -76,7 +82,17 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // --- NOVA FUNÇÃO PARA A LISTA DE DIAS ---
+  // --- NOVA FUNÇÃO: INVERTE O STATUS DE FAVORITO ---
+  void toggleFavorite(String id) {
+    final index = _accounts.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      final acc = _accounts[index];
+      _accounts[index] = acc.copyWith(isFavorite: !acc.isFavorite);
+      _saveAccounts();
+      notifyListeners();
+    }
+  }
+
   void setDays(String id, int days) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
@@ -119,9 +135,10 @@ class AccountManager extends ChangeNotifier {
   }
 
   List<Account> searchAccounts(String query) {
-    if (query.isEmpty) return _accounts;
+    final list = accounts; // Usa a lista que já coloca favoritos no topo
+    if (query.isEmpty) return list;
     final lowerQuery = query.toLowerCase();
-    return _accounts.where((a) {
+    return list.where((a) {
       return a.title.toLowerCase().contains(lowerQuery) ||
              a.description.toLowerCase().contains(lowerQuery) ||
              a.tags.any((tag) => tag.toLowerCase().contains(lowerQuery));
@@ -129,8 +146,9 @@ class AccountManager extends ChangeNotifier {
   }
 
   List<Account> filterByCategory(String category) {
-    if (category == 'Todas') return _accounts;
-    return _accounts.where((a) => a.category == category || a.tags.contains(category)).toList();
+    final list = accounts; // Usa a lista que já coloca favoritos no topo
+    if (category == 'Todas') return list;
+    return list.where((a) => a.category == category || a.tags.contains(category)).toList();
   }
 
   String exportData() {
@@ -138,6 +156,30 @@ class AccountManager extends ChangeNotifier {
       return json.encode(_accounts.map((a) => a.toMap()).toList());
     } catch (e) {
       return 'Erro ao exportar os dados do sistema.';
+    }
+  }
+
+  // --- NOVA FUNÇÃO: PROCESSA E IMPORTA O BACKUP JSON COPIADO ---
+  bool importData(String jsonString) {
+    try {
+      final List<dynamic> decodedList = json.decode(jsonString);
+      final List<Account> importedAccounts = decodedList
+          .map((item) => Account.fromMap(item as Map<String, dynamic>))
+          .toList();
+      
+      // Adiciona as novas contas sem apagar as atuais
+      for (var newAcc in importedAccounts) {
+        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) {
+          _accounts.add(newAcc);
+        }
+      }
+      
+      _saveAccounts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Falha ao restaurar dados: $e');
+      return false;
     }
   }
 }
