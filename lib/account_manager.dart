@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Import corrigido: agora puxa direto da mesma pasta
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
@@ -29,7 +28,6 @@ class AccountManager extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Erro ao carregar as contas do Neon Drive: $e');
-      // Se falhar, inicializa vazio
       _accounts = [];
     } finally {
       _isLoading = false;
@@ -78,36 +76,39 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
+  // --- CORRIGIDO AQUI ---
   void incrementDays(String id) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
       final acc = _accounts[index];
-      _accounts[index] = acc.copyWith(expiresAt: acc.expiresAt.add(const Duration(days: 1)));
-      _saveAccounts();
-      notifyListeners();
-    }
-  }
-
-  void decrementDays(String id) {
-    final index = _accounts.indexWhere((a) => a.id == id);
-    if (index != -1) {
-      final acc = _accounts[index];
-      final newDate = acc.expiresAt.subtract(const Duration(days: 1));
-      // Impede que a data fique no passado (menor que agora)
-      if (newDate.isAfter(DateTime.now())) {
-        _accounts[index] = acc.copyWith(expiresAt: newDate);
-        _saveAccounts();
-        notifyListeners();
-      } else {
-        // Se tentar diminuir abaixo do limite, "zera" o cronômetro para agora
-        _accounts[index] = acc.copyWith(expiresAt: DateTime.now());
+      if (acc.expiresAt != null) {
+        _accounts[index] = acc.copyWith(expiresAt: acc.expiresAt!.add(const Duration(days: 1)));
         _saveAccounts();
         notifyListeners();
       }
     }
   }
 
-  // Filtragem e Busca
+  // --- CORRIGIDO AQUI ---
+  void decrementDays(String id) {
+    final index = _accounts.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      final acc = _accounts[index];
+      if (acc.expiresAt != null) {
+        final newDate = acc.expiresAt!.subtract(const Duration(days: 1));
+        if (newDate.isAfter(DateTime.now())) {
+          _accounts[index] = acc.copyWith(expiresAt: newDate);
+          _saveAccounts();
+          notifyListeners();
+        } else {
+          _accounts[index] = acc.copyWith(expiresAt: DateTime.now());
+          _saveAccounts();
+          notifyListeners();
+        }
+      }
+    }
+  }
+
   List<Account> searchAccounts(String query) {
     if (query.isEmpty) return _accounts;
     final lowerQuery = query.toLowerCase();
@@ -123,7 +124,6 @@ class AccountManager extends ChangeNotifier {
     return _accounts.where((a) => a.category == category || a.tags.contains(category)).toList();
   }
 
-  // Função para exportar os dados no formato JSON
   String exportData() {
     try {
       return json.encode(_accounts.map((a) => a.toJson()).toList());
