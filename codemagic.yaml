@@ -11,16 +11,23 @@ workflows:
           cp -r lib/* temp_lib/
           cp pubspec.yaml temp_pubspec.yaml
 
-          # Cria a estrutura necessária
+          # Cria a estrutura necessária com o nome correto
           flutter create . --project-name=vapor_manager --overwrite --platforms=android
 
-          # Devolve o SEU código para o lugar certo, apagando a demo
+          # MUDA O NOME DO APP AQUI (Vai aparecer embaixo do ícone no celular)
+          sed -i '' 's/android:label=".*"/android:label="Vapor Manager"/' android/app/src/main/AndroidManifest.xml
+
+          # Devolve o SEU código para o lugar certo
           rm -rf lib/*
           cp -r temp_lib/* lib/
           cp temp_pubspec.yaml pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter packages pub get
+      - name: Generate App Icon
+        script: |
+          # Esse comando injeta a sua imagem assets/icone.png dentro do Android
+          flutter pub run flutter_launcher_icons
       - name: Build Android APK
         script: |
           flutter build apk --release
