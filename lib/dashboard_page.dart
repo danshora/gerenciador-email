@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../providers/account_manager.dart';
-import '../widgets/account_card.dart';
-import '../theme.dart';
+
+// Imports corrigidos para a pasta raiz
+import 'account_manager.dart';
+import 'account_card.dart';
+import 'theme.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
