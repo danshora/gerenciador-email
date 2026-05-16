@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'pages/home_page.dart';
-import 'pages/dashboard_page.dart';
-import 'pages/settings_page.dart';
+import 'home_page.dart';      // Corrigido: removido 'pages/'
+import 'dashboard_page.dart'; // Corrigido: removido 'pages/'
+import 'settings_page.dart';  // Corrigido: removido 'pages/'
 import 'theme.dart';
 
 class AppRouter {
