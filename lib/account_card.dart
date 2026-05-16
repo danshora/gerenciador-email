@@ -62,7 +62,7 @@ class _AccountCardState extends State<AccountCard> {
       description: _descController.text,
       daysLeft: widget.account.daysLeft,
       isReady: widget.account.isReady,
-      isFavorite: widget.account.isFavorite, // Preserva o status favorito
+      isFavorite: widget.account.isFavorite,
       category: widget.account.category,
       tags: widget.account.tags,
       createdAt: widget.account.createdAt,
@@ -121,7 +121,7 @@ class _AccountCardState extends State<AccountCard> {
           ),
           IconButton(
             onPressed: () => _copyField(value, label),
-            icon: const Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18),
+            icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18),
             tooltip: 'Copiar',
           ),
           if (trailingAction != null && trailingIcon != null)
@@ -139,8 +139,8 @@ class _AccountCardState extends State<AccountCard> {
     final text = 'Login: ${widget.account.email}\nSenha: ${widget.account.password}';
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Credenciais copiadas!', style: TextStyle(color: Colors.white)),
+      SnackBar(
+        content: const Text('Credenciais copiadas!', style: TextStyle(color: Colors.white)),
         backgroundColor: VaporwaveColors.neonCyan,
       ),
     );
@@ -164,12 +164,12 @@ class _AccountCardState extends State<AccountCard> {
             const SizedBox(width: AppSpacing.xs),
             
             PopupMenuButton<int>(
-              icon: const Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
+              icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
               tooltip: 'Escolher duração',
               color: VaporwaveColors.surfaceVariant,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                side: const BorderSide(color: VaporwaveColors.neonPurple),
+                side: BorderSide(color: VaporwaveColors.neonPurple),
               ),
               onSelected: (int days) {
                 manager.setDays(widget.account.id, days);
@@ -183,7 +183,7 @@ class _AccountCardState extends State<AccountCard> {
                 const PopupMenuItem(value: 60, child: Text('2 Meses (60)', style: TextStyle(color: Colors.white))),
                 const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
                 const PopupMenuDivider(height: 1),
-                const PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
+                PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
               ],
             ),
             
@@ -207,23 +207,23 @@ class _AccountCardState extends State<AccountCard> {
           children: [
             if (_isEditing)
               IconButton(
-                icon: const Icon(Icons.check, color: VaporwaveColors.neonGreen),
+                icon: Icon(Icons.check, color: VaporwaveColors.neonGreen),
                 onPressed: _saveEdits,
                 tooltip: 'Salvar',
               )
             else
               IconButton(
-                icon: const Icon(Icons.edit, color: VaporwaveColors.neonYellow),
+                icon: Icon(Icons.edit, color: VaporwaveColors.neonYellow),
                 onPressed: () => setState(() => _isEditing = true),
                 tooltip: 'Editar',
               ),
             IconButton(
-              icon: const Icon(Icons.copy, color: VaporwaveColors.neonCyan),
+              icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan),
               onPressed: _copyCredentials,
               tooltip: 'Copiar credenciais',
             ),
             IconButton(
-              icon: const Icon(Icons.delete, color: VaporwaveColors.neonRed),
+              icon: Icon(Icons.delete, color: VaporwaveColors.neonRed),
               onPressed: () => manager.deleteAccount(widget.account.id),
               tooltip: 'Excluir',
             ),
@@ -261,7 +261,6 @@ class _AccountCardState extends State<AccountCard> {
     final remaining = widget.account.remaining(DateTime.now());
     final timeText = remaining == Duration.zero ? 'Expirado' : _formatDuration(remaining);
     
-    // Identifica se é favorito para estilizar
     final isFav = widget.account.isFavorite;
 
     return Container(
@@ -288,7 +287,6 @@ class _AccountCardState extends State<AccountCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // --- NOVO BOTÃO DE FAVORITO AQUI ---
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -371,7 +369,7 @@ class _AccountCardState extends State<AccountCard> {
               )).toList(),
             ),
 
-          const Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
+          Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
           _credentialRow(icon: Icons.person, label: 'E-mail / Login', value: widget.account.email),
           _credentialRow(
@@ -383,7 +381,7 @@ class _AccountCardState extends State<AccountCard> {
             trailingIcon: _showPassword ? Icons.visibility_off : Icons.visibility,
           ),
 
-          const Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
+          Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
           _responsiveBottomRow(timeText: timeText, manager: manager),
         ],
