@@ -4,10 +4,20 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     scripts:
-      - name: Recreate Flutter project structure
+      - name: Recreate Flutter structure safely
         script: |
-          # Cria a estrutura necessária que o Dreamflow não exportou
+          # Move o seu código original para uma pasta temporária para protegê-lo
+          mkdir temp_lib
+          cp -r lib/* temp_lib/
+          cp pubspec.yaml temp_pubspec.yaml
+
+          # Cria a estrutura necessária
           flutter create . --project-name=vaporwave_journey --overwrite --platforms=android
+
+          # Devolve o SEU código para o lugar certo, apagando a demo
+          rm -rf lib/*
+          cp -r temp_lib/* lib/
+          cp temp_pubspec.yaml pubspec.yaml
       - name: Get Flutter dependencies
         script: |
           flutter packages pub get
