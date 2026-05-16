@@ -31,7 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: VaporwaveColors.surfaceVariant,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          side: const BorderSide(color: VaporwaveColors.neonPink, width: 2),
+          side: BorderSide(color: VaporwaveColors.neonPink, width: 2),
         ),
         title: Text(
           'DADOS EXPORTADOS',
@@ -65,15 +65,15 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan)),
+            child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan)),
           ),
           ElevatedButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: data));
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Dados copiados para a área de transferência!', style: TextStyle(color: Colors.white)),
+                SnackBar(
+                  content: const Text('Dados copiados para a área de transferência!', style: TextStyle(color: Colors.white)),
                   backgroundColor: VaporwaveColors.neonGreen,
                 ),
               );
@@ -86,7 +86,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // --- NOVA FUNÇÃO DE RESTAURAÇÃO DE BACKUP ---
   void _importData(BuildContext context) {
     final data = _importController.text.trim();
     if (data.isEmpty) return;
@@ -95,21 +94,63 @@ class _SettingsPageState extends State<SettingsPage> {
     
     if (success) {
       _importController.clear();
-      FocusScope.of(context).unfocus(); // Esconde o teclado
+      FocusScope.of(context).unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Backup restaurado com sucesso no Cyber-Espaço!', style: TextStyle(color: Colors.white)),
+        SnackBar(
+          content: const Text('Backup restaurado com sucesso no Cyber-Espaço!', style: TextStyle(color: Colors.white)),
           backgroundColor: VaporwaveColors.neonGreen,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro: Formato de dados inválido ou corrompido.', style: TextStyle(color: Colors.white)),
+        SnackBar(
+          content: const Text('Erro: Formato de dados inválido ou corrompido.', style: TextStyle(color: Colors.white)),
           backgroundColor: VaporwaveColors.neonRed,
         ),
       );
     }
+  }
+
+  // --- WIDGET PARA SELEÇÃO DE TEMA ---
+  Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isSelected = themeProvider.currentTheme == themeKey;
+
+    return InkWell(
+      onTap: () => themeProvider.changeTheme(themeKey),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: VaporwaveColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: isSelected ? primary : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)
+          ] : [],
+        ),
+        child: Row(
+          children: [
+            Container(width: 20, height: 20, decoration: BoxDecoration(color: primary, shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+            Container(width: 20, height: 20, decoration: BoxDecoration(color: secondary, shape: BoxShape.circle)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.orbitron(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ),
+            if (isSelected) Icon(Icons.check_circle, color: primary),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -124,18 +165,40 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView( // Mudado para Scroll para caber o campo de texto
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
+            Icon(
               Icons.settings_system_daydream,
               size: 80,
               color: VaporwaveColors.neonPink,
             ),
             const SizedBox(height: AppSpacing.xl),
             
+            // --- SESSÃO DE TEMAS ---
+            Text(
+              'INTERFACE',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.orbitron(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: VaporwaveColors.neonCyan,
+                shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', const Color(0xFFFF00FF), const Color(0xFF00FFFF)),
+            const SizedBox(height: AppSpacing.sm),
+            _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', const Color(0xFF00FFFF), const Color(0xFFFCEE09)),
+            const SizedBox(height: AppSpacing.sm),
+            _buildThemeButton(context, 'Outrun Laranja', 'outrun', const Color(0xFFFF6600), const Color(0xFFE0AAFF)),
+
+            const SizedBox(height: AppSpacing.xxl),
+            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
+            const SizedBox(height: AppSpacing.xxl),
+
             // SESSÃO DE EXPORTAÇÃO
             Text(
               'SISTEMA DE BACKUP',
@@ -144,7 +207,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: VaporwaveColors.neonCyan,
-                shadows: [const Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)],
+                shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)],
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -173,10 +236,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             
             const SizedBox(height: AppSpacing.xxl),
-            const Divider(color: VaporwaveColors.neonPurple, thickness: 2),
+            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
             const SizedBox(height: AppSpacing.xxl),
 
-            // --- NOVA SESSÃO DE IMPORTAÇÃO AQUI ---
+            // SESSÃO DE IMPORTAÇÃO
             Text(
               'RESTAURAR SISTEMA',
               textAlign: TextAlign.center,
@@ -184,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: VaporwaveColors.neonYellow,
-                shadows: [const Shadow(color: VaporwaveColors.neonYellow, blurRadius: 10)],
+                shadows: [Shadow(color: VaporwaveColors.neonYellow, blurRadius: 10)],
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -206,22 +269,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 fillColor: VaporwaveColors.surfaceVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: VaporwaveColors.neonYellow),
+                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: VaporwaveColors.neonPurple),
+                  borderSide: BorderSide(color: VaporwaveColors.neonPurple),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: const BorderSide(color: VaporwaveColors.neonYellow),
+                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton.icon(
               onPressed: () => _importData(context),
-              icon: const Icon(Icons.upload, color: VaporwaveColors.surfaceVariant),
+              icon: Icon(Icons.upload, color: VaporwaveColors.surfaceVariant),
               label: Text(
                 'IMPORTAR DADOS',
                 style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant),
