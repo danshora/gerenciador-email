@@ -122,4 +122,13 @@ class AccountManager extends ChangeNotifier {
     if (category == 'Todas') return _accounts;
     return _accounts.where((a) => a.category == category || a.tags.contains(category)).toList();
   }
+
+  // Função para exportar os dados no formato JSON
+  String exportData() {
+    try {
+      return json.encode(_accounts.map((a) => a.toJson()).toList());
+    } catch (e) {
+      return 'Erro ao exportar os dados do sistema.';
+    }
+  }
 }
