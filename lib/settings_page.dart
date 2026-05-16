@@ -111,7 +111,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // --- WIDGET PARA SELEÇÃO DE TEMA ---
   Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary) {
     final themeProvider = context.watch<ThemeProvider>();
     final isSelected = themeProvider.currentTheme == themeKey;
@@ -177,7 +176,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: AppSpacing.xl),
             
-            // --- SESSÃO DE TEMAS ---
             Text(
               'INTERFACE',
               textAlign: TextAlign.center,
@@ -199,7 +197,6 @@ class _SettingsPageState extends State<SettingsPage> {
             Divider(color: VaporwaveColors.neonPurple, thickness: 2),
             const SizedBox(height: AppSpacing.xxl),
 
-            // SESSÃO DE EXPORTAÇÃO
             Text(
               'SISTEMA DE BACKUP',
               textAlign: TextAlign.center,
@@ -239,7 +236,6 @@ class _SettingsPageState extends State<SettingsPage> {
             Divider(color: VaporwaveColors.neonPurple, thickness: 2),
             const SizedBox(height: AppSpacing.xxl),
 
-            // SESSÃO DE IMPORTAÇÃO
             Text(
               'RESTAURAR SISTEMA',
               textAlign: TextAlign.center,
