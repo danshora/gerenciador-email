@@ -1,154 +1,391 @@
-import 'dart:convert';
-import 'package:uuid/uuid.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class Account {
-  final String id;
-  String title;
-  String email;
-  String password;
-  String description;
-  int daysLeft;
-  bool isReady;
-  bool isFavorite; // NOVO CAMPO
-  String category;
-  List<String> tags;
-  DateTime createdAt;
-  DateTime updatedAt;
-  DateTime? expiresAt;
+import 'account.dart';
+import 'account_manager.dart';
+import 'theme.dart';
 
-  Account({
-    String? id,
-    required this.title,
-    required this.email,
-    required this.password,
-    this.description = '',
-    this.daysLeft = 0,
-    this.isReady = true,
-    this.isFavorite = false, // PADRÃO FALSO
-    String category = 'Outros',
-    List<String>? tags,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    this.expiresAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now(),
-        category = category.isEmpty ? 'Outros' : category,
-        tags = (tags == null || tags.isEmpty) ? [category.isEmpty ? 'Outros' : category] : List<String>.from(tags),
-        id = id ?? const Uuid().v4();
+class AccountCard extends StatefulWidget {
+  final Account account;
 
-  Duration remaining(DateTime now) {
-    final end = expiresAt;
-    if (end == null) return Duration(days: daysLeft);
-    final diff = end.difference(now);
-    return diff.isNegative ? Duration.zero : diff;
+  const AccountCard({super.key, required this.account});
+
+  @override
+  State<AccountCard> createState() => _AccountCardState();
+}
+
+class _AccountCardState extends State<AccountCard> {
+  late TextEditingController _titleController;
+  late TextEditingController _descController;
+  bool _isEditing = false;
+  bool _showPassword = false;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.account.title);
+    _descController = TextEditingController(text: widget.account.description);
+
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
-  Account copyWith({
-    String? id,
-    String? title,
-    String? email,
-    String? password,
-    String? description,
-    int? daysLeft,
-    bool? isReady,
-    bool? isFavorite, // ATUALIZADO AQUI
-    String? category,
-    List<String>? tags,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    DateTime? expiresAt,
+  @override
+  void didUpdateWidget(covariant AccountCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.account.id != widget.account.id) {
+      _titleController.text = widget.account.title;
+      _descController.text = widget.account.description;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  void _saveEdits() {
+    final updated = Account(
+      id: widget.account.id,
+      title: _titleController.text,
+      email: widget.account.email,
+      password: widget.account.password,
+      description: _descController.text,
+      daysLeft: widget.account.daysLeft,
+      isReady: widget.account.isReady,
+      isFavorite: widget.account.isFavorite,
+      category: widget.account.category,
+      tags: widget.account.tags,
+      createdAt: widget.account.createdAt,
+      updatedAt: DateTime.now(),
+      expiresAt: widget.account.expiresAt,
+    );
+    context.read<AccountManager>().updateAccount(updated);
+    setState(() {
+      _isEditing = false;
+    });
+  }
+
+  void _copyField(String value, String label) {
+    if (value.trim().isEmpty) return;
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copiado!', style: const TextStyle(color: Colors.white)),
+        backgroundColor: VaporwaveColors.neonCyan,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final totalSeconds = d.inSeconds;
+    final days = totalSeconds ~/ 86400;
+    final hours = (totalSeconds % 86400) ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${days}d ${two(hours)}:${two(minutes)}:${two(seconds)}';
+  }
+
+  Widget _credentialRow({required IconData icon, required String label, required String value, bool obscure = false, VoidCallback? trailingAction, IconData? trailingIcon}) {
+    final int obscuredLen = value.isEmpty ? 0 : (value.length.clamp(6, 24) as int);
+    final displayValue = obscure ? ('•' * obscuredLen) : value;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        children: [
+          Icon(icon, color: VaporwaveColors.neonPink, size: 18),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 11)),
+                const SizedBox(height: 2),
+                SelectableText(
+                  displayValue,
+                  style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _copyField(value, label),
+            icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18),
+            tooltip: 'Copiar',
+          ),
+          if (trailingAction != null && trailingIcon != null)
+            IconButton(
+              onPressed: trailingAction,
+              icon: Icon(trailingIcon, color: VaporwaveColors.neonYellow, size: 18),
+              tooltip: 'Mostrar/ocultar',
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _copyCredentials() {
+    final text = 'Login: ${widget.account.email}\nSenha: ${widget.account.password}';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Credenciais copiadas!', style: TextStyle(color: Colors.white)),
+        backgroundColor: VaporwaveColors.neonCyan,
+      ),
+    );
+  }
+
+  Widget _responsiveBottomRow({
+    required String timeText,
+    required AccountManager manager,
   }) {
-    return Account(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      email: email ?? this.email,
-      password: password ?? this.password,
-      description: description ?? this.description,
-      daysLeft: daysLeft ?? this.daysLeft,
-      isReady: isReady ?? this.isReady,
-      isFavorite: isFavorite ?? this.isFavorite, // ATUALIZADO AQUI
-      category: category ?? this.category,
-      tags: tags ?? this.tags,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      expiresAt: expiresAt ?? this.expiresAt,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 380;
+
+        final counter = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Renovar:',
+              style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            
+            PopupMenuButton<int>(
+              icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
+              tooltip: 'Escolher duração',
+              color: VaporwaveColors.surfaceVariant,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                side: BorderSide(color: VaporwaveColors.neonPurple),
+              ),
+              onSelected: (int days) {
+                manager.setDays(widget.account.id, days);
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 1, child: Text('1 Dia', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 3, child: Text('3 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 7, child: Text('7 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 15, child: Text('15 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 30, child: Text('1 Mês (30)', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 60, child: Text('2 Meses (60)', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
+                const PopupMenuDivider(height: 1),
+                PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
+              ],
+            ),
+            
+            const SizedBox(width: AppSpacing.xs),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 100),
+              child: Text(
+                timeText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+
+        final actions = Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          alignment: WrapAlignment.end,
+          children: [
+            if (_isEditing)
+              IconButton(
+                icon: Icon(Icons.check, color: VaporwaveColors.neonGreen),
+                onPressed: _saveEdits,
+                tooltip: 'Salvar',
+              )
+            else
+              IconButton(
+                icon: Icon(Icons.edit, color: VaporwaveColors.neonYellow),
+                onPressed: () => setState(() => _isEditing = true),
+                tooltip: 'Editar',
+              ),
+            IconButton(
+              icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan),
+              onPressed: _copyCredentials,
+              tooltip: 'Copiar credenciais',
+            ),
+            IconButton(
+              icon: Icon(Icons.delete, color: VaporwaveColors.neonRed),
+              onPressed: () => manager.deleteAccount(widget.account.id),
+              tooltip: 'Excluir',
+            ),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              counter,
+              const SizedBox(height: AppSpacing.sm),
+              Align(alignment: Alignment.centerRight, child: actions),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            counter,
+            actions,
+          ],
+        );
+      },
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'email': email,
-      'password': password,
-      'description': description,
-      'daysLeft': daysLeft,
-      'isReady': isReady,
-      'isFavorite': isFavorite, // ATUALIZADO AQUI
-      'category': category,
-      'tags': tags,
-      'createdAtMs': createdAt.millisecondsSinceEpoch,
-      'updatedAtMs': updatedAt.millisecondsSinceEpoch,
-      'expiresAtMs': expiresAt?.millisecondsSinceEpoch,
-    };
-  }
+  @override
+  Widget build(BuildContext context) {
+    final manager = context.read<AccountManager>();
+    final isReady = widget.account.isReady;
+    final statusColor = isReady ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed;
+    final statusText = isReady ? 'Pronta para uso' : 'Descartada';
+    final remaining = widget.account.remaining(DateTime.now());
+    final timeText = remaining == Duration.zero ? 'Expirado' : _formatDuration(remaining);
+    
+    final isFav = widget.account.isFavorite;
 
-  factory Account.fromMap(Map<String, dynamic> map) {
-    final now = DateTime.now();
-    final createdAtMs = map['createdAtMs'];
-    final updatedAtMs = map['updatedAtMs'];
-    final expiresAtMs = map['expiresAtMs'];
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: VaporwaveColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: isFav ? VaporwaveColors.neonYellow : statusColor.withValues(alpha: 0.5), 
+          width: isFav ? 2.0 : 1.5
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isFav ? VaporwaveColors.neonYellow.withValues(alpha: 0.2) : statusColor.withValues(alpha: 0.2),
+            blurRadius: 8,
+            spreadRadius: 1,
+          )
+        ],
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => manager.toggleFavorite(widget.account.id),
+                icon: Icon(
+                  isFav ? Icons.star : Icons.star_border,
+                  color: isFav ? VaporwaveColors.neonYellow : VaporwaveColors.neonCyan.withValues(alpha: 0.5),
+                  size: 24,
+                ),
+                tooltip: isFav ? 'Remover dos favoritos' : 'Fixar no topo',
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _isEditing
+                    ? TextField(
+                        controller: _titleController,
+                        style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 18),
+                        decoration: const InputDecoration(
+                          hintText: 'Nome da Conta',
+                          isDense: true,
+                        ),
+                      )
+                    : Text(
+                        widget.account.title,
+                        style: GoogleFonts.orbitron(
+                          color: VaporwaveColors.neonCyan,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+              InkWell(
+                onTap: () => manager.toggleStatus(widget.account.id),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(color: statusColor),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          
+          _isEditing
+              ? TextField(
+                  controller: _descController,
+                  style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText: 'Descrição / Notas',
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                )
+              : Text(
+                  widget.account.description.isEmpty ? 'Sem descrição' : widget.account.description,
+                  style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 14),
+                ),
+          
+          const SizedBox(height: AppSpacing.sm),
+          
+          if (widget.account.tags.isNotEmpty && !_isEditing)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: widget.account.tags.map((t) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: VaporwaveColors.surface,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: VaporwaveColors.neonPurple, width: 1),
+                ),
+                child: Text(t, style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan, fontSize: 11)),
+              )).toList(),
+            ),
 
-    DateTime safeDate(dynamic ms, DateTime fallback) {
-      if (ms is int) return DateTime.fromMillisecondsSinceEpoch(ms);
-      if (ms is String) {
-        final parsed = int.tryParse(ms);
-        if (parsed != null) return DateTime.fromMillisecondsSinceEpoch(parsed);
-      }
-      return fallback;
-    }
+          Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
-    final createdAt = safeDate(createdAtMs, now);
-    final updatedAt = safeDate(updatedAtMs, createdAt);
-    final int legacyDays = (map['daysLeft'] is int) ? (map['daysLeft'] as int) : int.tryParse('${map['daysLeft']}') ?? 0;
-    final String legacyCategory = (map['category'] ?? 'Outros').toString();
+          _credentialRow(icon: Icons.person, label: 'E-mail / Login', value: widget.account.email),
+          _credentialRow(
+            icon: Icons.lock,
+            label: 'Senha',
+            value: widget.account.password,
+            obscure: !_showPassword,
+            trailingAction: () => setState(() => _showPassword = !_showPassword),
+            trailingIcon: _showPassword ? Icons.visibility_off : Icons.visibility,
+          ),
 
-    List<String> parseTags(dynamic raw) {
-      if (raw is List) {
-        return raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
-      }
-      if (raw is String && raw.trim().isNotEmpty) {
-        return [raw.trim()];
-      }
-      return [legacyCategory];
-    }
+          Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
-    final tags = parseTags(map['tags']);
-    DateTime? expiresAt;
-    if (expiresAtMs != null) {
-      expiresAt = safeDate(expiresAtMs, now);
-    } else if (legacyDays > 0) {
-      expiresAt = createdAt.add(Duration(days: legacyDays));
-    }
-
-    return Account(
-      id: map['id'],
-      title: map['title'] ?? '',
-      email: map['email'] ?? '',
-      password: map['password'] ?? '',
-      description: map['description'] ?? '',
-      daysLeft: legacyDays,
-      isReady: map['isReady'] ?? true,
-      isFavorite: map['isFavorite'] ?? false, // ATUALIZADO AQUI
-      category: legacyCategory,
-      tags: tags,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-      expiresAt: expiresAt,
+          _responsiveBottomRow(timeText: timeText, manager: manager),
+        ],
+      ),
     );
   }
-
-  String toJson() => json.encode(toMap());
-
-  factory Account.fromJson(String source) => Account.fromMap(json.decode(source));
 }
