@@ -41,6 +41,37 @@ class Account {
     return diff.isNegative ? Duration.zero : diff;
   }
 
+  // --- MÉTODO ADICIONADO AQUI PARA CORRIGIR O ERRO ---
+  Account copyWith({
+    String? id,
+    String? title,
+    String? email,
+    String? password,
+    String? description,
+    int? daysLeft,
+    bool? isReady,
+    String? category,
+    List<String>? tags,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? expiresAt,
+  }) {
+    return Account(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      description: description ?? this.description,
+      daysLeft: daysLeft ?? this.daysLeft,
+      isReady: isReady ?? this.isReady,
+      category: category ?? this.category,
+      tags: tags ?? this.tags,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -57,64 +88,3 @@ class Account {
       'expiresAtMs': expiresAt?.millisecondsSinceEpoch,
     };
   }
-
-  factory Account.fromMap(Map<String, dynamic> map) {
-    final now = DateTime.now();
-    final createdAtMs = map['createdAtMs'];
-    final updatedAtMs = map['updatedAtMs'];
-    final expiresAtMs = map['expiresAtMs'];
-
-    DateTime safeDate(dynamic ms, DateTime fallback) {
-      if (ms is int) return DateTime.fromMillisecondsSinceEpoch(ms);
-      if (ms is String) {
-        final parsed = int.tryParse(ms);
-        if (parsed != null) return DateTime.fromMillisecondsSinceEpoch(parsed);
-      }
-      return fallback;
-    }
-
-    final createdAt = safeDate(createdAtMs, now);
-    final updatedAt = safeDate(updatedAtMs, createdAt);
-    final int legacyDays = (map['daysLeft'] is int) ? (map['daysLeft'] as int) : int.tryParse('${map['daysLeft']}') ?? 0;
-    final String legacyCategory = (map['category'] ?? 'Outros').toString();
-
-    List<String> parseTags(dynamic raw) {
-      if (raw is List) {
-        return raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
-      }
-      if (raw is String && raw.trim().isNotEmpty) {
-        // Aceita formato antigo onde alguém possa ter salvo como string única.
-        return [raw.trim()];
-      }
-      return [legacyCategory];
-    }
-
-    final tags = parseTags(map['tags']);
-    DateTime? expiresAt;
-    if (expiresAtMs != null) {
-      expiresAt = safeDate(expiresAtMs, now);
-    } else if (legacyDays > 0) {
-      // Migração automática: se já existia daysLeft, vira um contador por tempo.
-      expiresAt = createdAt.add(Duration(days: legacyDays));
-    }
-
-    return Account(
-      id: map['id'],
-      title: map['title'] ?? '',
-      email: map['email'] ?? '',
-      password: map['password'] ?? '',
-      description: map['description'] ?? '',
-      daysLeft: legacyDays,
-      isReady: map['isReady'] ?? true,
-      category: legacyCategory,
-      tags: tags,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-      expiresAt: expiresAt,
-    );
-  }
-
-  String toJson() => json.encode(toMap());
-
-  factory Account.fromJson(String source) => Account.fromMap(json.decode(source));
-}
