@@ -62,6 +62,7 @@ class _AccountCardState extends State<AccountCard> {
       description: _descController.text,
       daysLeft: widget.account.daysLeft,
       isReady: widget.account.isReady,
+      isFavorite: widget.account.isFavorite, // Preserva o status favorito
       category: widget.account.category,
       tags: widget.account.tags,
       createdAt: widget.account.createdAt,
@@ -145,7 +146,6 @@ class _AccountCardState extends State<AccountCard> {
     );
   }
 
-  // --- MENU DE DIAS ADICIONADO AQUI ---
   Widget _responsiveBottomRow({
     required String timeText,
     required AccountManager manager,
@@ -163,7 +163,6 @@ class _AccountCardState extends State<AccountCard> {
             ),
             const SizedBox(width: AppSpacing.xs),
             
-            // MENU DROPDOWN DE TEMPO
             PopupMenuButton<int>(
               icon: const Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
               tooltip: 'Escolher duração',
@@ -261,16 +260,22 @@ class _AccountCardState extends State<AccountCard> {
     final statusText = isReady ? 'Pronta para uso' : 'Descartada';
     final remaining = widget.account.remaining(DateTime.now());
     final timeText = remaining == Duration.zero ? 'Expirado' : _formatDuration(remaining);
+    
+    // Identifica se é favorito para estilizar
+    final isFav = widget.account.isFavorite;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: VaporwaveColors.surfaceVariant,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(
+          color: isFav ? VaporwaveColors.neonYellow : statusColor.withValues(alpha: 0.5), 
+          width: isFav ? 2.0 : 1.5
+        ),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withValues(alpha: 0.2),
+            color: isFav ? VaporwaveColors.neonYellow.withValues(alpha: 0.2) : statusColor.withValues(alpha: 0.2),
             blurRadius: 8,
             spreadRadius: 1,
           )
@@ -283,6 +288,19 @@ class _AccountCardState extends State<AccountCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // --- NOVO BOTÃO DE FAVORITO AQUI ---
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => manager.toggleFavorite(widget.account.id),
+                icon: Icon(
+                  isFav ? Icons.star : Icons.star_border,
+                  color: isFav ? VaporwaveColors.neonYellow : VaporwaveColors.neonCyan.withValues(alpha: 0.5),
+                  size: 24,
+                ),
+                tooltip: isFav ? 'Remover dos favoritos' : 'Fixar no topo',
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _isEditing
                     ? TextField(
@@ -338,7 +356,6 @@ class _AccountCardState extends State<AccountCard> {
           
           const SizedBox(height: AppSpacing.sm),
           
-          // --- VISUALIZAÇÃO DAS TAGS ---
           if (widget.account.tags.isNotEmpty && !_isEditing)
             Wrap(
               spacing: 6,
