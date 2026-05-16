@@ -4,6 +4,10 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     scripts:
+      - name: Recreate Flutter project structure
+        script: |
+          # Esse comando cria as pastas android e ios que estão faltando
+          flutter create . --overwrite --platforms=android
       - name: Get Flutter dependencies
         script: |
           flutter packages pub get
