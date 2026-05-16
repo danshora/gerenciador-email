@@ -145,7 +145,7 @@ class _AccountCardState extends State<AccountCard> {
     );
   }
 
-  // --- CORRIGIDO AQUI ---
+  // --- MENU DE DIAS ADICIONADO AQUI ---
   Widget _responsiveBottomRow({
     required String timeText,
     required AccountManager manager,
@@ -158,34 +158,45 @@ class _AccountCardState extends State<AccountCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Cronômetro:',
+              'Renovar:',
               style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12),
             ),
             const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline, color: VaporwaveColors.neonCyan, size: 20),
-              onPressed: () => manager.decrementDays(widget.account.id),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Diminuir 1 dia',
+            
+            // MENU DROPDOWN DE TEMPO
+            PopupMenuButton<int>(
+              icon: const Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
+              tooltip: 'Escolher duração',
+              color: VaporwaveColors.surfaceVariant,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                side: const BorderSide(color: VaporwaveColors.neonPurple),
+              ),
+              onSelected: (int days) {
+                manager.setDays(widget.account.id, days);
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 1, child: Text('1 Dia', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 3, child: Text('3 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 7, child: Text('7 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 15, child: Text('15 Dias', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 30, child: Text('1 Mês (30)', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 60, child: Text('2 Meses (60)', style: TextStyle(color: Colors.white))),
+                const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
+                const PopupMenuDivider(height: 1),
+                const PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
+              ],
             ),
+            
             const SizedBox(width: AppSpacing.xs),
             ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 132),
+              constraints: const BoxConstraints(minWidth: 100),
               child: Text(
                 timeText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: VaporwaveColors.neonCyan, size: 20),
-              onPressed: () => manager.incrementDays(widget.account.id),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Aumentar 1 dia',
             ),
           ],
         );
@@ -325,6 +336,24 @@ class _AccountCardState extends State<AccountCard> {
                   style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 14),
                 ),
           
+          const SizedBox(height: AppSpacing.sm),
+          
+          // --- VISUALIZAÇÃO DAS TAGS ---
+          if (widget.account.tags.isNotEmpty && !_isEditing)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: widget.account.tags.map((t) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: VaporwaveColors.surface,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: VaporwaveColors.neonPurple, width: 1),
+                ),
+                child: Text(t, style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan, fontSize: 11)),
+              )).toList(),
+            ),
+
           const Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
           _credentialRow(icon: Icons.person, label: 'E-mail / Login', value: widget.account.email),
