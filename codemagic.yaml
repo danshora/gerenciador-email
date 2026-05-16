@@ -12,7 +12,7 @@ workflows:
           cp pubspec.yaml temp_pubspec.yaml
 
           # Cria a estrutura necessária
-          flutter create . --project-name=vaporwave_journey --overwrite --platforms=android
+          flutter create . --project-name=vapor_manager --overwrite --platforms=android
 
           # Devolve o SEU código para o lugar certo, apagando a demo
           rm -rf lib/*
