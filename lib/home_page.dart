@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme.dart';
-import '../models/account.dart';
-import '../providers/account_manager.dart';
+
+// Imports corrigidos para a mesma pasta
+import 'theme.dart';
+import 'account.dart';
+import 'account_manager.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
