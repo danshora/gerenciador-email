@@ -1,4 +1,4 @@
-name: vaporwave_journey
+name: vapor_manager
 description: "Entre na atmosfera vaporwave com um gerenciador de contas que não só organiza seus logins e senhas, mas também adiciona um toque neon dos anos 80 à sua vida digital."
 publish_to: "none"
 version: 1.0.0
@@ -28,5 +28,5 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icons/dreamflow_icon.jpg
+  image_path: "assets/icone.png
   remove_alpha_ios: true
