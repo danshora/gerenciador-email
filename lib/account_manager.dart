@@ -24,7 +24,6 @@ class AccountManager extends ChangeNotifier {
       
       if (accountsJson != null) {
         final List<dynamic> decodedList = json.decode(accountsJson);
-        // Usando fromMap em vez de fromJson para casar perfeitamente com o json.decode
         _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
     } catch (e) {
@@ -39,7 +38,6 @@ class AccountManager extends ChangeNotifier {
   Future<void> _saveAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Salvando a lista formatada como Map para evitar erro de tipo
       final String encodedList = json.encode(_accounts.map((a) => a.toMap()).toList());
       await prefs.setString(_storageKey, encodedList);
     } catch (e) {
@@ -73,6 +71,17 @@ class AccountManager extends ChangeNotifier {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(isReady: !acc.isReady);
+      _saveAccounts();
+      notifyListeners();
+    }
+  }
+
+  // --- NOVA FUNÇÃO PARA A LISTA DE DIAS ---
+  void setDays(String id, int days) {
+    final index = _accounts.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      final acc = _accounts[index];
+      _accounts[index] = acc.copyWith(expiresAt: DateTime.now().add(Duration(days: days)));
       _saveAccounts();
       notifyListeners();
     }
