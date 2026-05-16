@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Imports corrigidos para a mesma pasta
 import 'theme.dart';
 import 'account.dart';
 import 'account_manager.dart';
@@ -114,8 +113,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _saveAccount() {
     if (_titleController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preencha todos os campos obrigatórios', style: TextStyle(color: Colors.white)),
+        SnackBar(
+          content: const Text('Preencha todos os campos obrigatórios', style: TextStyle(color: Colors.white)),
           backgroundColor: VaporwaveColors.neonRed,
         ),
       );
@@ -134,7 +133,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       updatedAt: now,
       expiresAt: now.add(const Duration(days: 30)),
       isReady: true,
-      // Mantém compatibilidade com o filtro do Gerenciador.
       category: tags.first,
       tags: tags,
     );
@@ -142,8 +140,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     context.read<AccountManager>().addAccount(account);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Conta salva no cyber-espaço!', style: TextStyle(color: Colors.white)),
+      SnackBar(
+        content: const Text('Conta salva no cyber-espaço!', style: TextStyle(color: Colors.white)),
         backgroundColor: VaporwaveColors.neonGreen,
       ),
     );
@@ -206,7 +204,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 const SizedBox(width: AppSpacing.sm),
                 IconButton(
                   onPressed: onGenerate,
-                  icon: const Icon(Icons.casino, color: VaporwaveColors.neonYellow),
+                  icon: Icon(Icons.casino, color: VaporwaveColors.neonYellow),
                   tooltip: 'Gerar Aleatório',
                 ),
               ],
@@ -214,7 +212,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 const SizedBox(width: AppSpacing.sm),
                 IconButton(
                   onPressed: onCopy,
-                  icon: const Icon(Icons.copy, color: VaporwaveColors.neonPink),
+                  icon: Icon(Icons.copy, color: VaporwaveColors.neonPink),
                   tooltip: 'Copiar',
                 ),
               ],
@@ -304,7 +302,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       _selectedTags.add(t);
                     }
 
-                    // Garante pelo menos 1 tag.
                     if (_selectedTags.isEmpty) {
                       _selectedTags.add('Outros');
                     }
