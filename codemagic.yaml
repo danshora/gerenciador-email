@@ -1,5 +1,18 @@
 workflows:
-  android-app:
+  android-workflow:
     name: Build Android APK
-    instance_type: mac_mini_m1
-    max_build_duration: 6
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter packages pub get
+      - name: Build Android APK
+        script: |
+          flutter build apk --release --no-codesign
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - seu-email@aqui.com
