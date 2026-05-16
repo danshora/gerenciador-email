@@ -33,14 +33,13 @@ class _DashboardPageState extends State<DashboardPage> {
       body: Consumer<AccountManager>(
         builder: (context, manager, child) {
           if (manager.isLoading) {
-            return const Center(child: CircularProgressIndicator(color: VaporwaveColors.neonPink));
+            return Center(child: CircularProgressIndicator(color: VaporwaveColors.neonPink));
           }
 
           final accounts = manager.accounts.where((acc) {
             final matchesSearch = acc.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
                                   acc.email.toLowerCase().contains(_searchQuery.toLowerCase());
             
-            // --- LÓGICA DE TAGS CORRIGIDA ---
             final matchesCategory = _selectedCategory == 'Todas' || 
                                     acc.category == _selectedCategory || 
                                     acc.tags.contains(_selectedCategory);
@@ -66,7 +65,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Buscar contas...',
-                            prefixIcon: const Icon(Icons.search, color: VaporwaveColors.neonCyan),
+                            prefixIcon: Icon(Icons.search, color: VaporwaveColors.neonCyan),
                             filled: true,
                             fillColor: VaporwaveColors.surface,
                             border: OutlineInputBorder(
@@ -91,7 +90,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           child: DropdownButton<String>(
                             value: _selectedCategory,
                             dropdownColor: VaporwaveColors.surfaceVariant,
-                            icon: const Icon(Icons.arrow_drop_down, color: VaporwaveColors.neonPink),
+                            icon: Icon(Icons.arrow_drop_down, color: VaporwaveColors.neonPink),
                             style: GoogleFonts.chakraPetch(color: Colors.white),
                             isExpanded: true,
                             onChanged: (String? newValue) {
