@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Imports corrigidos para a pasta raiz
 import 'account_manager.dart';
 import 'account_card.dart';
 import 'theme.dart';
@@ -40,7 +39,12 @@ class _DashboardPageState extends State<DashboardPage> {
           final accounts = manager.accounts.where((acc) {
             final matchesSearch = acc.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
                                   acc.email.toLowerCase().contains(_searchQuery.toLowerCase());
-            final matchesCategory = _selectedCategory == 'Todas' || acc.category == _selectedCategory;
+            
+            // --- LÓGICA DE TAGS CORRIGIDA ---
+            final matchesCategory = _selectedCategory == 'Todas' || 
+                                    acc.category == _selectedCategory || 
+                                    acc.tags.contains(_selectedCategory);
+                                    
             return matchesSearch && matchesCategory;
           }).toList();
 
@@ -48,7 +52,6 @@ class _DashboardPageState extends State<DashboardPage> {
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               children: [
-                // Search and Filter
                 Row(
                   children: [
                     Expanded(
@@ -109,8 +112,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                
-                // List View
                 Expanded(
                   child: accounts.isEmpty
                       ? Center(
