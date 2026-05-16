@@ -9,6 +9,7 @@ class Account {
   String description;
   int daysLeft;
   bool isReady;
+  bool isFavorite; // NOVO CAMPO
   String category;
   List<String> tags;
   DateTime createdAt;
@@ -23,14 +24,16 @@ class Account {
     this.description = '',
     this.daysLeft = 0,
     this.isReady = true,
-    this.category = 'Outros',
+    this.isFavorite = false, // PADRÃO FALSO
+    String category = 'Outros',
     List<String>? tags,
     DateTime? createdAt,
     DateTime? updatedAt,
     this.expiresAt,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now(),
-        tags = (tags == null || tags.isEmpty) ? [category] : List<String>.from(tags),
+        category = category.isEmpty ? 'Outros' : category,
+        tags = (tags == null || tags.isEmpty) ? [category.isEmpty ? 'Outros' : category] : List<String>.from(tags),
         id = id ?? const Uuid().v4();
 
   Duration remaining(DateTime now) {
@@ -48,6 +51,7 @@ class Account {
     String? description,
     int? daysLeft,
     bool? isReady,
+    bool? isFavorite, // ATUALIZADO AQUI
     String? category,
     List<String>? tags,
     DateTime? createdAt,
@@ -62,6 +66,7 @@ class Account {
       description: description ?? this.description,
       daysLeft: daysLeft ?? this.daysLeft,
       isReady: isReady ?? this.isReady,
+      isFavorite: isFavorite ?? this.isFavorite, // ATUALIZADO AQUI
       category: category ?? this.category,
       tags: tags ?? this.tags,
       createdAt: createdAt ?? this.createdAt,
@@ -79,6 +84,7 @@ class Account {
       'description': description,
       'daysLeft': daysLeft,
       'isReady': isReady,
+      'isFavorite': isFavorite, // ATUALIZADO AQUI
       'category': category,
       'tags': tags,
       'createdAtMs': createdAt.millisecondsSinceEpoch,
@@ -133,6 +139,7 @@ class Account {
       description: map['description'] ?? '',
       daysLeft: legacyDays,
       isReady: map['isReady'] ?? true,
+      isFavorite: map['isFavorite'] ?? false, // ATUALIZADO AQUI
       category: legacyCategory,
       tags: tags,
       createdAt: createdAt,
