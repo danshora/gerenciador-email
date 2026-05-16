@@ -24,7 +24,8 @@ class AccountManager extends ChangeNotifier {
       
       if (accountsJson != null) {
         final List<dynamic> decodedList = json.decode(accountsJson);
-        _accounts = decodedList.map((item) => Account.fromJson(item)).toList();
+        // Usando fromMap em vez de fromJson para casar perfeitamente com o json.decode
+        _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
     } catch (e) {
       debugPrint('Erro ao carregar as contas do Neon Drive: $e');
@@ -38,7 +39,8 @@ class AccountManager extends ChangeNotifier {
   Future<void> _saveAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String encodedList = json.encode(_accounts.map((a) => a.toJson()).toList());
+      // Salvando a lista formatada como Map para evitar erro de tipo
+      final String encodedList = json.encode(_accounts.map((a) => a.toMap()).toList());
       await prefs.setString(_storageKey, encodedList);
     } catch (e) {
       debugPrint('Erro ao salvar no Neon Drive: $e');
@@ -76,7 +78,6 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // --- CORRIGIDO AQUI ---
   void incrementDays(String id) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
@@ -89,7 +90,6 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // --- CORRIGIDO AQUI ---
   void decrementDays(String id) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
@@ -126,7 +126,7 @@ class AccountManager extends ChangeNotifier {
 
   String exportData() {
     try {
-      return json.encode(_accounts.map((a) => a.toJson()).toList());
+      return json.encode(_accounts.map((a) => a.toMap()).toList());
     } catch (e) {
       return 'Erro ao exportar os dados do sistema.';
     }
