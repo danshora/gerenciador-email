@@ -22,8 +22,13 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  void _exportData(BuildContext context) {
-    final data = context.read<AccountManager>().exportData();
+  // --- POPUP DE SENHA (USADO PARA EXPORTAR E IMPORTAR) ---
+  void _showPasswordDialog({
+    required String title,
+    required String buttonText,
+    required Function(String) onSubmit,
+  }) {
+    final pwController = TextEditingController();
     
     showDialog(
       context: context,
@@ -31,32 +36,37 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: VaporwaveColors.surfaceVariant,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(color: VaporwaveColors.neonPink, width: 2),
+          side: BorderSide(color: VaporwaveColors.neonYellow, width: 2),
         ),
         title: Text(
-          'DADOS EXPORTADOS',
-          style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan),
+          title,
+          style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Copie seus dados abaixo para backup:',
-              style: GoogleFonts.chakraPetch(color: Colors.white),
+              'Digite uma senha para trancar/destrancar este backup:',
+              style: GoogleFonts.chakraPetch(color: Colors.white70),
             ),
             const SizedBox(height: AppSpacing.md),
-            Container(
-              height: 150,
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: VaporwaveColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: VaporwaveColors.neonPurple),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  data,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+            TextField(
+              controller: pwController,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Sua senha secreta...',
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                filled: true,
+                fillColor: VaporwaveColors.surface,
+                prefixIcon: Icon(Icons.key, color: VaporwaveColors.neonYellow),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(color: VaporwaveColors.neonPurple),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
                 ),
               ),
             ),
@@ -65,50 +75,133 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan)),
+            child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink)),
           ),
-          ElevatedButton.icon(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow),
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: data));
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Dados copiados para a área de transferência!', style: TextStyle(color: Colors.white)),
-                  backgroundColor: VaporwaveColors.neonGreen,
-                ),
-              );
+              final pw = pwController.text.trim();
+              if (pw.isNotEmpty) {
+                Navigator.pop(context);
+                onSubmit(pw);
+              }
             },
-            icon: const Icon(Icons.copy),
-            label: const Text('COPIAR'),
+            child: Text(buttonText, style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
+  void _exportData(BuildContext context) {
+    // Primeiro pede a senha, depois gera o código
+    _showPasswordDialog(
+      title: 'SENHA DE EXPORTAÇÃO',
+      buttonText: 'GERAR BACKUP',
+      onSubmit: (password) {
+        final data = context.read<AccountManager>().exportData(password);
+        
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: VaporwaveColors.surfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(color: VaporwaveColors.neonPink, width: 2),
+            ),
+            title: Text(
+              'COFRE TRANCADO',
+              style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Este código só pode ser aberto com a senha que você acabou de criar:',
+                  style: GoogleFonts.chakraPetch(color: Colors.white),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  height: 150,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: VaporwaveColors.surface,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(color: VaporwaveColors.neonPurple),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      data,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: data));
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Dados copiados para a área de transferência!', style: TextStyle(color: Colors.white)),
+                      backgroundColor: VaporwaveColors.neonGreen,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('COPIAR'),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
   void _importData(BuildContext context) {
     final data = _importController.text.trim();
-    if (data.isEmpty) return;
-
-    final success = context.read<AccountManager>().importData(data);
-    
-    if (success) {
-      _importController.clear();
-      FocusScope.of(context).unfocus();
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (data.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Backup restaurado com sucesso no Cyber-Espaço!', style: TextStyle(color: Colors.white)),
-          backgroundColor: VaporwaveColors.neonGreen,
+          content: const Text('Cole o código de backup primeiro.', style: TextStyle(color: Colors.white)),
+          backgroundColor: VaporwaveColors.neonPink,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Erro: Formato de dados inválido ou corrompido.', style: TextStyle(color: Colors.white)),
-          backgroundColor: VaporwaveColors.neonRed,
-        ),
-      );
+      return;
     }
+
+    // Pede a senha para destrancar o código colado
+    _showPasswordDialog(
+      title: 'SENHA DE RESTAURAÇÃO',
+      buttonText: 'DESTRANCAR',
+      onSubmit: (password) {
+        final success = context.read<AccountManager>().importData(data, password);
+        
+        if (success) {
+          _importController.clear();
+          FocusScope.of(context).unfocus();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Acesso Autorizado. Backup restaurado!', style: TextStyle(color: Colors.white)),
+              backgroundColor: VaporwaveColors.neonGreen,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Acesso Negado: Senha incorreta ou código corrompido.', style: TextStyle(color: Colors.white)),
+              backgroundColor: VaporwaveColors.neonRed,
+            ),
+          );
+        }
+      }
+    );
   }
 
   Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary) {
@@ -209,7 +302,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Exporte suas contas para um formato seguro e guarde-as no cofre cibernético.',
+              'Exporte suas contas com criptografia militar AES-256.',
               textAlign: TextAlign.center,
               style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 16),
             ),
@@ -221,9 +314,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: ElevatedButton.icon(
                 onPressed: () => _exportData(context),
-                icon: const Icon(Icons.download),
+                icon: const Icon(Icons.lock_outline),
                 label: Text(
-                  'EXPORTAR DADOS',
+                  'EXPORTAR COM SENHA',
                   style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -248,7 +341,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Cole o código de backup gerado anteriormente para recuperar suas contas.',
+              'Cole o código do cofre e insira a senha para destrancar.',
               textAlign: TextAlign.center,
               style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 16),
             ),
@@ -259,7 +352,7 @@ class _SettingsPageState extends State<SettingsPage> {
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
-                hintText: 'Cole o texto JSON aqui...',
+                hintText: 'Cole o código encriptado aqui...',
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                 filled: true,
                 fillColor: VaporwaveColors.surfaceVariant,
@@ -280,9 +373,9 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton.icon(
               onPressed: () => _importData(context),
-              icon: Icon(Icons.upload, color: VaporwaveColors.surfaceVariant),
+              icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
               label: Text(
-                'IMPORTAR DADOS',
+                'DESTRANCAR E IMPORTAR',
                 style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant),
               ),
               style: ElevatedButton.styleFrom(
