@@ -1,16 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
   
+  final _iv = enc.IV.fromLength(16); // Vetor de inicialização padrão
+  
   List<Account> _accounts = [];
   bool _isLoading = true;
 
-  // --- ALTERADO: ORGANIZA PARA MOSTRAR OS FAVORITOS SEMPRE NO TOPO ---
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
     final nonFavs = _accounts.where((a) => !a.isFavorite).toList();
@@ -21,6 +23,13 @@ class AccountManager extends ChangeNotifier {
 
   AccountManager() {
     _loadAccounts();
+  }
+
+  // GERA UMA CHAVE ÚNICA BASEADA NA SENHA DO USUÁRIO
+  enc.Key _getKeyFromPassword(String password) {
+    // Mistura a senha com um sal para garantir exatos 32 caracteres (exigência do AES-256)
+    final salted = password + 'VaporManagerCyberVaultSecretK3y!';
+    return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
   Future<void> _loadAccounts() async {
@@ -82,7 +91,6 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // --- NOVA FUNÇÃO: INVERTE O STATUS DE FAVORITO ---
   void toggleFavorite(String id) {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
@@ -135,7 +143,7 @@ class AccountManager extends ChangeNotifier {
   }
 
   List<Account> searchAccounts(String query) {
-    final list = accounts; // Usa a lista que já coloca favoritos no topo
+    final list = accounts;
     if (query.isEmpty) return list;
     final lowerQuery = query.toLowerCase();
     return list.where((a) {
@@ -146,28 +154,44 @@ class AccountManager extends ChangeNotifier {
   }
 
   List<Account> filterByCategory(String category) {
-    final list = accounts; // Usa a lista que já coloca favoritos no topo
+    final list = accounts;
     if (category == 'Todas') return list;
     return list.where((a) => a.category == category || a.tags.contains(category)).toList();
   }
 
-  String exportData() {
+  // EXPORTAÇÃO EXIGE SENHA AGORA
+  String exportData(String password) {
     try {
-      return json.encode(_accounts.map((a) => a.toMap()).toList());
+      final jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
+      final key = _getKeyFromPassword(password);
+      final encrypter = enc.Encrypter(enc.AES(key));
+      final encrypted = encrypter.encrypt(jsonString, iv: _iv);
+      return encrypted.base64;
     } catch (e) {
       return 'Erro ao exportar os dados do sistema.';
     }
   }
 
-  // --- NOVA FUNÇÃO: PROCESSA E IMPORTA O BACKUP JSON COPIADO ---
-  bool importData(String jsonString) {
+  // IMPORTAÇÃO EXIGE A MESMA SENHA
+  bool importData(String inputData, String password) {
     try {
+      String jsonString;
+      
+      // Tenta destrancar usando a senha fornecida
+      try {
+        final key = _getKeyFromPassword(password);
+        final encrypter = enc.Encrypter(enc.AES(key));
+        jsonString = encrypter.decrypt64(inputData, iv: _iv);
+      } catch (_) {
+        // Se a senha falhar, tenta ver se é um backup muito antigo (texto puro)
+        jsonString = inputData;
+      }
+
       final List<dynamic> decodedList = json.decode(jsonString);
       final List<Account> importedAccounts = decodedList
           .map((item) => Account.fromMap(item as Map<String, dynamic>))
           .toList();
       
-      // Adiciona as novas contas sem apagar as atuais
       for (var newAcc in importedAccounts) {
         if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) {
           _accounts.add(newAcc);
@@ -179,7 +203,7 @@ class AccountManager extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('Falha ao restaurar dados: $e');
-      return false;
+      return false; // Retorna falso se a senha estiver errada ou o arquivo corrompido
     }
   }
 }
