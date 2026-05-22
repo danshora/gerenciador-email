@@ -21,8 +21,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  bool _hasExpiration = true; // Toggle para conta permanente
+  bool _hasExpiration = true; 
   late AnimationController _glowController;
+
+  // --- MEMÓRIA DAS CONFIGURAÇÕES DO GERADOR ---
+  // E-mail
+  String _emailDomain = '@gmail.com';
+  String _customDomain = '';
+  
+  // Senha
+  double _pwdLength = 16;
+  bool _pwdUpper = true;
+  bool _pwdLower = true;
+  bool _pwdNum = true;
+  bool _pwdSym = true;
 
   @override
   void initState() {
@@ -39,7 +51,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
-  // --- AUTO-LIMPEZA DO CLIPBOARD ---
   void _copyToClipboardSecure(String text, String fieldName, {bool isSensitive = false}) {
     if (text.isEmpty) return;
     Clipboard.setData(ClipboardData(text: text));
@@ -50,7 +61,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       Timer(const Duration(seconds: 30), () async {
         final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
         if (clipboardData != null && clipboardData.text == text) {
-          Clipboard.setData(const ClipboardData(text: '')); // Limpa o clipboard
+          Clipboard.setData(const ClipboardData(text: '')); 
         }
       });
     }
@@ -60,11 +71,44 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  // --- FORJA DE E-MAIL (DIA 2) ---
+  // --- FUNÇÕES DE GERAÇÃO RÁPIDA (BOTÃO DO DADO) ---
+  
+  String _generateRandomPrefix() {
+    const words = ['neon', 'cyber', 'synth', 'retro', 'wave', 'vapor', 'glitch', 'net', 'run'];
+    final rnd = Random();
+    final word = words[rnd.nextInt(words.length)];
+    final number = rnd.nextInt(9999);
+    return '$word$number';
+  }
+
+  void _quickGenerateEmail() {
+    final prefix = _generateRandomPrefix();
+    final domain = _emailDomain == 'Customizado' ? _customDomain : _emailDomain;
+    final finalDomain = domain.startsWith('@') ? domain : (domain.isEmpty ? '@gmail.com' : '@$domain');
+    _emailController.text = '$prefix$finalDomain';
+  }
+
+  void _quickGeneratePassword() {
+    if (!_pwdUpper && !_pwdLower && !_pwdNum && !_pwdSym) {
+      _pwdLower = true; // Segurança pra não bugar se o usuário desmarcar tudo
+    }
+    String chars = '';
+    if (_pwdUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (_pwdLower) chars += 'abcdefghijklmnopqrstuvwxyz';
+    if (_pwdNum) chars += '0123456789';
+    if (_pwdSym) chars += '!@#\$%^&*()-_=+';
+    
+    final rnd = Random();
+    final res = String.fromCharCodes(Iterable.generate(_pwdLength.toInt(), (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    _passwordController.text = res;
+  }
+
+
+  // --- POP-UPS DE CONFIGURAÇÃO (BOTÃO DA ENGRENAGEM) ---
+
   void _showEmailForgeDialog() {
     final prefixController = TextEditingController();
-    String selectedDomain = '@gmail.com';
-    final customDomainController = TextEditingController();
+    final customDomainController = TextEditingController(text: _customDomain);
 
     showDialog(
       context: context,
@@ -73,7 +117,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           return AlertDialog(
             backgroundColor: VaporwaveColors.surfaceVariant,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide(color: VaporwaveColors.neonCyan)),
-            title: Text('FORJA DE LOGIN', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan)),
+            title: Text('CONFIGS: E-MAIL', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -83,27 +127,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     controller: prefixController,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Prefixo (Ex: player1)',
+                      hintText: 'Prefixo opcional (Ex: player1)',
                       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                       filled: true, fillColor: VaporwaveColors.surface,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButton<String>(
-                    value: selectedDomain,
+                    value: _emailDomain,
                     dropdownColor: VaporwaveColors.surfaceVariant,
                     isExpanded: true,
                     style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonYellow, fontSize: 14),
                     items: ['@gmail.com', '@hotmail.com', '@outlook.com', 'Customizado'].map((String val) {
                       return DropdownMenuItem(value: val, child: Text(val));
                     }).toList(),
-                    onChanged: (val) => setStateBuilder(() => selectedDomain = val!),
+                    onChanged: (val) => setStateBuilder(() => _emailDomain = val!),
                   ),
-                  if (selectedDomain == 'Customizado') ...[
+                  if (_emailDomain == 'Customizado') ...[
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: customDomainController,
                       style: const TextStyle(color: Colors.white),
+                      onChanged: (val) => _customDomain = val,
                       decoration: InputDecoration(
                         hintText: '@seuservidor.com',
                         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
@@ -115,17 +160,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))),
+              TextButton(onPressed: () => Navigator.pop(context), child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonPink))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonCyan),
                 onPressed: () {
-                  final prefix = prefixController.text.trim().isEmpty ? 'neon_user${Random().nextInt(999)}' : prefixController.text.trim();
-                  final domain = selectedDomain == 'Customizado' ? customDomainController.text.trim() : selectedDomain;
-                  final finalDomain = domain.startsWith('@') ? domain : '@$domain';
-                  _emailController.text = '$prefix$finalDomain';
+                  final prefix = prefixController.text.trim().isEmpty ? _generateRandomPrefix() : prefixController.text.trim();
+                  final domain = _emailDomain == 'Customizado' ? _customDomain : _emailDomain;
+                  final finalDomain = domain.startsWith('@') ? domain : (domain.isEmpty ? '@gmail.com' : '@$domain');
+                  _emailController.text = '$prefix$finalDomain'; // Gera e aplica
                   Navigator.pop(context);
                 },
-                child: Text('APLICAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
+                child: Text('SALVAR E GERAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -134,14 +179,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  // --- FORJA DE SENHA (DIA 1) ---
   void _showPasswordForgeDialog() {
-    double length = 16;
-    bool useUpper = true;
-    bool useLower = true;
-    bool useNum = true;
-    bool useSym = true;
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -149,59 +187,50 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           return AlertDialog(
             backgroundColor: VaporwaveColors.surfaceVariant,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide(color: VaporwaveColors.neonYellow)),
-            title: Text('FORJA DE SENHA', style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow)),
+            title: Text('CONFIGS: SENHA', style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Tamanho: ${length.toInt()} caracteres', style: GoogleFonts.chakraPetch(color: Colors.white)),
+                  Text('Tamanho: ${_pwdLength.toInt()} caracteres', style: GoogleFonts.chakraPetch(color: Colors.white)),
                   Slider(
-                    value: length, min: 8, max: 64, divisions: 56,
+                    value: _pwdLength, min: 8, max: 64, divisions: 56,
                     activeColor: VaporwaveColors.neonYellow,
-                    onChanged: (val) => setStateBuilder(() => length = val),
+                    onChanged: (val) => setStateBuilder(() => _pwdLength = val),
                   ),
                   CheckboxListTile(
                     title: const Text('Maiúsculas (A-Z)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                    value: useUpper, activeColor: VaporwaveColors.neonYellow,
-                    onChanged: (val) => setStateBuilder(() => useUpper = val ?? true),
+                    value: _pwdUpper, activeColor: VaporwaveColors.neonYellow,
+                    onChanged: (val) => setStateBuilder(() => _pwdUpper = val ?? true),
                   ),
                   CheckboxListTile(
                     title: const Text('Minúsculas (a-z)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                    value: useLower, activeColor: VaporwaveColors.neonYellow,
-                    onChanged: (val) => setStateBuilder(() => useLower = val ?? true),
+                    value: _pwdLower, activeColor: VaporwaveColors.neonYellow,
+                    onChanged: (val) => setStateBuilder(() => _pwdLower = val ?? true),
                   ),
                   CheckboxListTile(
                     title: const Text('Números (0-9)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                    value: useNum, activeColor: VaporwaveColors.neonYellow,
-                    onChanged: (val) => setStateBuilder(() => useNum = val ?? true),
+                    value: _pwdNum, activeColor: VaporwaveColors.neonYellow,
+                    onChanged: (val) => setStateBuilder(() => _pwdNum = val ?? true),
                   ),
                   CheckboxListTile(
                     title: const Text('Símbolos (!@#\$%)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                    value: useSym, activeColor: VaporwaveColors.neonYellow,
-                    onChanged: (val) => setStateBuilder(() => useSym = val ?? true),
+                    value: _pwdSym, activeColor: VaporwaveColors.neonYellow,
+                    onChanged: (val) => setStateBuilder(() => _pwdSym = val ?? true),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))),
+              TextButton(onPressed: () => Navigator.pop(context), child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonPink))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow),
                 onPressed: () {
-                  if (!useUpper && !useLower && !useNum && !useSym) return; // Precisa de pelo menos 1
-                  String chars = '';
-                  if (useUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                  if (useLower) chars += 'abcdefghijklmnopqrstuvwxyz';
-                  if (useNum) chars += '0123456789';
-                  if (useSym) chars += '!@#\$%^&*()-_=+';
-                  
-                  final rnd = Random();
-                  final res = String.fromCharCodes(Iterable.generate(length.toInt(), (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
-                  _passwordController.text = res;
+                  _quickGeneratePassword(); // Gera usando as novas configs
                   Navigator.pop(context);
                 },
-                child: Text('GERAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
+                child: Text('SALVAR E GERAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -222,7 +251,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       title: _titleController.text,
       email: _emailController.text,
       password: _passwordController.text,
-      hasExpiration: _hasExpiration, // Adiciona configuração vitalícia
+      hasExpiration: _hasExpiration, 
       daysLeft: 30,
       expiresAt: _hasExpiration ? DateTime.now().add(const Duration(days: 30)) : null,
     );
@@ -232,104 +261,4 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       SnackBar(content: const Text('Dados forjados com sucesso!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen),
     );
 
-    _titleController.clear();
-    _emailController.clear();
-    _passwordController.clear();
-    setState(() => _hasExpiration = true); // Reseta toggle
-  }
-
-  Widget _buildTextField({required TextEditingController controller, required String label, required String hintText, required IconData icon, bool isPassword = false, VoidCallback? onSettings, VoidCallback? onCopy}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 14)),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(boxShadow: neonGlowCyan, borderRadius: BorderRadius.circular(AppRadius.md)),
-                  child: TextField(
-                    controller: controller, obscureText: isPassword, style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(prefixIcon: Icon(icon, color: VaporwaveColors.neonCyan), hintText: hintText, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none), filled: true, fillColor: VaporwaveColors.surface),
-                  ),
-                ),
-              ),
-              if (onSettings != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                IconButton(onPressed: onSettings, icon: Icon(Icons.settings_suggest, color: VaporwaveColors.neonYellow), tooltip: 'Configurar Gerador'),
-              ],
-              if (onCopy != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                IconButton(onPressed: onCopy, icon: Icon(Icons.copy, color: VaporwaveColors.neonPink), tooltip: 'Copiar'),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSpacing.xl),
-              Center(
-                child: AnimatedBuilder(
-                  animation: _glowController,
-                  builder: (context, child) {
-                    return Column(
-                      children: [
-                        Text('CYBER-FORJA', style: GoogleFonts.orbitron(fontSize: 32, fontWeight: FontWeight.bold, color: VaporwaveColors.neonPink, shadows: [Shadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.5 + (_glowController.value * 0.5)), blurRadius: 10 + (_glowController.value * 15))])),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text('Forje novas credenciais ou gere acessos\ncom parâmetros avançados.', textAlign: TextAlign.center, style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 13, height: 1.4)),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              
-              _buildTextField(controller: _titleController, label: 'Identificador do Serviço', hintText: 'Ex: Steam, Banco...', icon: Icons.title),
-              _buildTextField(controller: _emailController, label: 'Usuário / E-mail', hintText: 'Digite ou gere um login', icon: Icons.person, onSettings: _showEmailForgeDialog, onCopy: () => _copyToClipboardSecure(_emailController.text, 'Login')),
-              _buildTextField(controller: _passwordController, label: 'Senha de Acesso', hintText: 'Digite ou gere uma senha', icon: Icons.lock, isPassword: true, onSettings: _showPasswordForgeDialog, onCopy: () => _copyToClipboardSecure(_passwordController.text, 'Senha', isSensitive: true)),
-              
-              // --- TOGGLE VITALÍCIO ---
-              SwitchListTile(
-                title: Text('Ativar Cronômetro de Validade?', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan)),
-                subtitle: Text(_hasExpiration ? 'A conta vencerá em 30 dias (pode alterar depois).' : 'Conta permanente. Nunca irá expirar.', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                value: _hasExpiration,
-                activeColor: VaporwaveColors.neonCyan,
-                onChanged: (val) => setState(() => _hasExpiration = val),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-              
-              AnimatedBuilder(
-                animation: _glowController,
-                builder: (context, child) {
-                  return Container(
-                    decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: ElevatedButton(
-                      onPressed: _saveAccount,
-                      style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.surfaceVariant, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg), side: BorderSide(color: VaporwaveColors.neonPink.withValues(alpha: 0.8 + (_glowController.value * 0.2)), width: 2)),
-                      child: Text('FORJAR ACESSO', style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonPink, letterSpacing: 2)),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+    _
