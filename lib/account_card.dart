@@ -10,7 +10,6 @@ import 'theme.dart';
 
 class AccountCard extends StatefulWidget {
   final Account account;
-
   const AccountCard({super.key, required this.account});
 
   @override
@@ -67,6 +66,7 @@ class _AccountCardState extends State<AccountCard> {
       daysLeft: widget.account.daysLeft,
       isReady: widget.account.isReady,
       isFavorite: widget.account.isFavorite,
+      hasExpiration: widget.account.hasExpiration,
       category: widget.account.category,
       tags: _currentTags,
       createdAt: widget.account.createdAt,
@@ -74,16 +74,26 @@ class _AccountCardState extends State<AccountCard> {
       expiresAt: widget.account.expiresAt,
     );
     context.read<AccountManager>().updateAccount(updated);
-    setState(() {
-      _isEditing = false;
-    });
+    setState(() => _isEditing = false);
   }
 
-  void _copyField(String value, String label) {
-    if (value.trim().isEmpty) return;
-    Clipboard.setData(ClipboardData(text: value));
+  void _copyToClipboardSecure(String text, String label, {bool isSensitive = false}) {
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    
+    String msg = '$label copiado!';
+    if (isSensitive) {
+      msg += ' (Auto-limpeza em 30s)';
+      Timer(const Duration(seconds: 30), () async {
+        final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+        if (clipboardData != null && clipboardData.text == text) {
+          Clipboard.setData(const ClipboardData(text: ''));
+        }
+      });
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label copiado!', style: const TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonCyan),
+      SnackBar(content: Text(msg, style: const TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonCyan),
     );
   }
 
@@ -116,17 +126,12 @@ class _AccountCardState extends State<AccountCard> {
               ],
             ),
           ),
-          IconButton(onPressed: () => _copyField(value, label), icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18)),
+          IconButton(onPressed: () => _copyToClipboardSecure(value, label, isSensitive: obscure), icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18)),
           if (trailingAction != null && trailingIcon != null)
             IconButton(onPressed: trailingAction, icon: Icon(trailingIcon, color: VaporwaveColors.neonYellow, size: 18)),
         ],
       ),
     );
-  }
-
-  void _copyCredentials() {
-    Clipboard.setData(ClipboardData(text: 'Login: ${widget.account.email}\nSenha: ${widget.account.password}'));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Credenciais copiadas!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonCyan));
   }
 
   Widget _responsiveBottomRow({required String timeText, required AccountManager manager}) {
@@ -135,37 +140,41 @@ class _AccountCardState extends State<AccountCard> {
         final counter = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Renovar:', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12)),
+            Text(widget.account.hasExpiration ? 'Renovar:' : 'Status:', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12)),
             const SizedBox(width: AppSpacing.xs),
-            PopupMenuButton<int>(
-              icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
-              color: VaporwaveColors.surfaceVariant,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm), side: BorderSide(color: VaporwaveColors.neonPurple)),
-              onSelected: (int days) => manager.setDays(widget.account.id, days),
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 30, child: Text('1 Mês', style: TextStyle(color: Colors.white))),
-                const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
-                const PopupMenuDivider(height: 1),
-                PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
-              ],
-            ),
+            
+            if (widget.account.hasExpiration) 
+              PopupMenuButton<int>(
+                icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
+                color: VaporwaveColors.surfaceVariant,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm), side: BorderSide(color: VaporwaveColors.neonPurple)),
+                onSelected: (int days) => manager.setDays(widget.account.id, days),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 30, child: Text('1 Mês', style: TextStyle(color: Colors.white))),
+                  const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
+                  const PopupMenuDivider(height: 1),
+                  PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
+                ],
+              ),
+            
             const SizedBox(width: AppSpacing.xs),
             ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 100),
-              child: Text(timeText, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text(
+                widget.account.hasExpiration ? timeText : 'VITALÍCIA', 
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+              ),
             ),
           ],
         );
 
         final actions = Wrap(
-          spacing: 4,
-          alignment: WrapAlignment.end,
+          spacing: 4, alignment: WrapAlignment.end,
           children: [
             if (_isEditing)
               IconButton(icon: Icon(Icons.check, color: VaporwaveColors.neonGreen), onPressed: _saveEdits)
             else
               IconButton(icon: Icon(Icons.edit, color: VaporwaveColors.neonYellow), onPressed: () => setState(() => _isEditing = true)),
-            IconButton(icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan), onPressed: _copyCredentials),
             IconButton(icon: Icon(Icons.delete, color: VaporwaveColors.neonRed), onPressed: () => manager.deleteAccount(widget.account.id)),
           ],
         );
@@ -229,7 +238,6 @@ class _AccountCardState extends State<AccountCard> {
           Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
           _credentialRow(icon: Icons.person, label: 'Login', value: widget.account.email),
           
-          // --- VISUALIZAÇÃO DE TAGS (MODO LEITURA) ---
           if (!_isEditing && widget.account.tags.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
@@ -243,7 +251,6 @@ class _AccountCardState extends State<AccountCard> {
               ),
             ),
 
-          // --- SELEÇÃO DE TAGS (MODO EDIÇÃO) ---
           if (_isEditing)
             Padding(
               padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
@@ -253,7 +260,7 @@ class _AccountCardState extends State<AccountCard> {
                   Text('Equipar Tags (Segure para apagar do app):', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonYellow, fontSize: 11)),
                   const SizedBox(height: 4),
                   manager.savedTags.isEmpty 
-                    ? Text('Nenhuma tag global criada ainda.', style: TextStyle(color: Colors.white38, fontSize: 12))
+                    ? const Text('Nenhuma tag global criada ainda.', style: TextStyle(color: Colors.white38, fontSize: 12))
                     : Wrap(
                         spacing: 8,
                         runSpacing: 4,
@@ -263,19 +270,9 @@ class _AccountCardState extends State<AccountCard> {
                             onLongPress: () => manager.removeGlobalTag(tag),
                             child: FilterChip(
                               label: Text(tag, style: TextStyle(color: isSelected ? VaporwaveColors.surfaceVariant : Colors.white, fontSize: 11)),
-                              selected: isSelected,
-                              selectedColor: VaporwaveColors.neonCyan,
-                              backgroundColor: VaporwaveColors.surface,
+                              selected: isSelected, selectedColor: VaporwaveColors.neonCyan, backgroundColor: VaporwaveColors.surface,
                               side: BorderSide(color: isSelected ? VaporwaveColors.neonCyan : VaporwaveColors.neonPurple),
-                              onSelected: (bool selected) {
-                                setState(() {
-                                  if (selected) {
-                                    _currentTags.add(tag);
-                                  } else {
-                                    _currentTags.remove(tag);
-                                  }
-                                });
-                              },
+                              onSelected: (bool selected) => setState(() => selected ? _currentTags.add(tag) : _currentTags.remove(tag)),
                             ),
                           );
                         }).toList(),
