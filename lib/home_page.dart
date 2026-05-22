@@ -15,53 +15,11 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _TagChips extends StatelessWidget {
-  final List<String> tags;
-  final Set<String> selected;
-  final ValueChanged<String> onToggle;
-
-  const _TagChips({required this.tags, required this.selected, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: tags.map((t) {
-        final isSelected = selected.contains(t);
-        return FilterChip(
-          label: Text(t),
-          selected: isSelected,
-          onSelected: (_) => onToggle(t),
-          showCheckmark: false,
-          side: BorderSide(color: (isSelected ? VaporwaveColors.neonPink : VaporwaveColors.neonPurple).withValues(alpha: 0.9)),
-          backgroundColor: VaporwaveColors.surface,
-          selectedColor: VaporwaveColors.surfaceVariant,
-          labelStyle: GoogleFonts.chakraPetch(
-            color: isSelected ? VaporwaveColors.neonCyan : Colors.white,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        );
-      }).toList(),
-    );
-  }
-}
-
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   final _titleController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   late AnimationController _glowController;
-
-  final Set<String> _selectedTags = {'Outros'};
-
-  static const List<String> _availableTags = [
-    'Jogos',
-    'Streaming',
-    'Trabalho',
-    'Outros',
-  ];
 
   @override
   void initState() {
@@ -122,7 +80,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
 
     final now = DateTime.now();
-    final tags = _selectedTags.isEmpty ? <String>['Outros'] : _selectedTags.toList();
     final account = Account(
       title: _titleController.text,
       email: _emailController.text,
@@ -133,8 +90,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       updatedAt: now,
       expiresAt: now.add(const Duration(days: 30)),
       isReady: true,
-      category: tags.first,
-      tags: tags,
+      category: 'Geral', // Categoria padrão
+      tags: [], // Tags começam vazias agora!
     );
 
     context.read<AccountManager>().addAccount(account);
@@ -149,11 +106,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _titleController.clear();
     _emailController.clear();
     _passwordController.clear();
-    setState(() {
-      _selectedTags
-        ..clear()
-        ..add('Outros');
-    });
   }
 
   Widget _buildTextField({
@@ -284,29 +236,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _passwordController.text = _generateRandomString(16);
                 },
                 onCopy: () => _copyToClipboard(_passwordController.text, 'Senha'),
-              ),
-
-              Text(
-                'Tags',
-                style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 14),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _TagChips(
-                tags: _availableTags,
-                selected: _selectedTags,
-                onToggle: (t) {
-                  setState(() {
-                    if (_selectedTags.contains(t)) {
-                      _selectedTags.remove(t);
-                    } else {
-                      _selectedTags.add(t);
-                    }
-
-                    if (_selectedTags.isEmpty) {
-                      _selectedTags.add('Outros');
-                    }
-                  });
-                },
               ),
               
               const SizedBox(height: AppSpacing.xl),
