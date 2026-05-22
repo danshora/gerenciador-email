@@ -14,12 +14,25 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  String _searchQuery = '';
-  String _selectedCategory = 'Todas';
-  final List<String> _categories = ['Todas', 'Jogos', 'Streaming', 'Trabalho', 'Outros'];
+  final _searchController = TextEditingController();
+  String _selectedTag = 'Todas'; 
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final manager = context.watch<AccountManager>();
+    
+    var displayList = manager.searchAccounts(_searchController.text.trim());
+    
+    if (_selectedTag != 'Todas') {
+      displayList = displayList.where((account) => account.tags.contains(_selectedTag)).toList();
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -30,106 +43,97 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-      body: Consumer<AccountManager>(
-        builder: (context, manager, child) {
-          if (manager.isLoading) {
-            return Center(child: CircularProgressIndicator(color: VaporwaveColors.neonPink));
-          }
-
-          final accounts = manager.accounts.where((acc) {
-            final matchesSearch = acc.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                                  acc.email.toLowerCase().contains(_searchQuery.toLowerCase());
-            
-            final matchesCategory = _selectedCategory == 'Todas' || 
-                                    acc.category == _selectedCategory || 
-                                    acc.tags.contains(_selectedCategory);
-                                    
-            return matchesSearch && matchesCategory;
-          }).toList();
-
-          return Padding(
+      body: Column(
+        children: [
+          Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: neonGlowCyan,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: TextField(
-                          onChanged: (val) => setState(() => _searchQuery = val),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Buscar contas...',
-                            prefixIcon: Icon(Icons.search, color: VaporwaveColors.neonCyan),
-                            filled: true,
-                            fillColor: VaporwaveColors.surface,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      flex: 1,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                        decoration: BoxDecoration(
-                          color: VaporwaveColors.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: VaporwaveColors.neonPurple),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedCategory,
-                            dropdownColor: VaporwaveColors.surfaceVariant,
-                            icon: Icon(Icons.arrow_drop_down, color: VaporwaveColors.neonPink),
-                            style: GoogleFonts.chakraPetch(color: Colors.white),
-                            isExpanded: true,
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() => _selectedCategory = newValue);
-                              }
-                            },
-                            items: _categories.map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
                 Expanded(
-                  child: accounts.isEmpty
-                      ? Center(
-                          child: Text(
-                            'NENHUMA CONTA ENCONTRADA',
-                            style: GoogleFonts.orbitron(color: VaporwaveColors.neonPurple, fontSize: 18),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: accounts.length,
-                          itemBuilder: (context, index) {
-                            return AccountCard(account: accounts[index]);
-                          },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      boxShadow: neonGlowCyan,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}), 
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar credenciais...',
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                        prefixIcon: Icon(Icons.search, color: VaporwaveColors.neonCyan),
+                        filled: true,
+                        fillColor: VaporwaveColors.surfaceVariant,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderSide: BorderSide.none,
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: VaporwaveColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: VaporwaveColors.neonPink, width: 1.5),
+                    boxShadow: neonGlowPink,
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: manager.savedTags.contains(_selectedTag) || _selectedTag == 'Todas' 
+                          ? _selectedTag 
+                          : 'Todas',
+                      dropdownColor: VaporwaveColors.surfaceVariant,
+                      icon: Icon(Icons.label, color: VaporwaveColors.neonPink),
+                      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedTag = newValue;
+                          });
+                        }
+                      },
+                      items: ['Todas', ...manager.savedTags].map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value == 'Todas' ? 'TAGS: TODAS' : '# $value'),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+
+          Expanded(
+            child: manager.isLoading
+                ? Center(child: CircularProgressIndicator(color: VaporwaveColors.neonCyan))
+                : displayList.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Nenhum registro encontrado.',
+                          style: GoogleFonts.chakraPetch(color: Colors.white38, fontSize: 16),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        itemCount: displayList.length,
+                        itemBuilder: (context, index) {
+                          final account = displayList[index];
+                          return AccountCard(
+                            key: ValueKey(account.id),
+                            account: account,
+                          );
+                        },
+                      ),
+          ),
+        ],
       ),
     );
   }
