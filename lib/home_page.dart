@@ -98,7 +98,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Conta salva no cyber-espaço!', style: TextStyle(color: Colors.white)),
+        content: const Text('Dados forjados com sucesso!', style: TextStyle(color: Colors.white)),
         backgroundColor: VaporwaveColors.neonGreen,
       ),
     );
@@ -189,19 +189,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 child: AnimatedBuilder(
                   animation: _glowController,
                   builder: (context, child) {
-                    return Text(
-                      'NOVA CONTA',
-                      style: GoogleFonts.orbitron(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: VaporwaveColors.neonPink,
-                        shadows: [
-                          Shadow(
-                            color: VaporwaveColors.neonPink.withValues(alpha: 0.5 + (_glowController.value * 0.5)),
-                            blurRadius: 10 + (_glowController.value * 15),
+                    return Column(
+                      children: [
+                        Text(
+                          'CYBER-FORJA',
+                          style: GoogleFonts.orbitron(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: VaporwaveColors.neonPink,
+                            shadows: [
+                              Shadow(
+                                color: VaporwaveColors.neonPink.withValues(alpha: 0.5 + (_glowController.value * 0.5)),
+                                blurRadius: 10 + (_glowController.value * 15),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Forje novas credenciais ou gere acessos\naleatórios e seguros para o seu cofre.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.chakraPetch(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -210,15 +224,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               
               _buildTextField(
                 controller: _titleController,
-                label: 'Nome da Conta',
-                hintText: 'Digite nome',
+                label: 'Identificador do Serviço',
+                hintText: 'Ex: Discord, ProtonMail...',
                 icon: Icons.title,
               ),
               
               _buildTextField(
                 controller: _emailController,
-                label: 'E-mail ou Login',
-                hintText: 'Digite e-mail',
+                label: 'Usuário / E-mail',
+                hintText: 'Digite ou gere um login',
                 icon: Icons.person,
                 onGenerate: () {
                   _emailController.text = _generateRandomEmail();
@@ -228,8 +242,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               
               _buildTextField(
                 controller: _passwordController,
-                label: 'Senha',
-                hintText: 'Digite senha',
+                label: 'Senha de Acesso',
+                hintText: 'Digite ou gere uma senha',
                 icon: Icons.lock,
                 isPassword: true,
                 onGenerate: () {
@@ -259,7 +273,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         ),
                       ),
                       child: Text(
-                        'SALVAR CONTA',
+                        'FORJAR ACESSO',
                         style: GoogleFonts.orbitron(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
