@@ -8,12 +8,14 @@ import 'account.dart';
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
   static const String _savedTagsKey = 'vaporwave_global_tags'; 
+  static const String _premiumKey = 'vaporwave_is_premium'; // Controle Premium
   
   final _iv = enc.IV.fromLength(16);
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
   bool _isLoading = true;
+  bool _isPremium = false; // MODO PAGANTE
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -23,6 +25,7 @@ class AccountManager extends ChangeNotifier {
   
   List<String> get savedTags => _savedTags;
   bool get isLoading => _isLoading;
+  bool get isPremium => _isPremium;
 
   AccountManager() {
     _loadAccounts();
@@ -37,6 +40,8 @@ class AccountManager extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       
+      _isPremium = prefs.getBool(_premiumKey) ?? false;
+
       final String? accountsJson = prefs.getString(_storageKey);
       if (accountsJson != null) {
         final List<dynamic> decodedList = json.decode(accountsJson);
@@ -48,7 +53,7 @@ class AccountManager extends ChangeNotifier {
         _savedTags = List<String>.from(json.decode(tagsJson));
       }
     } catch (e) {
-      debugPrint('Erro ao carregar dados do Neon Drive: $e');
+      debugPrint('Erro ao carregar dados: $e');
       _accounts = [];
       _savedTags = [];
     } finally {
@@ -57,13 +62,20 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
+  Future<void> togglePremium() async {
+    _isPremium = !_isPremium;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_premiumKey, _isPremium);
+    notifyListeners();
+  }
+
   Future<void> _saveAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String encodedList = json.encode(_accounts.map((a) => a.toMap()).toList());
       await prefs.setString(_storageKey, encodedList);
     } catch (e) {
-      debugPrint('Erro ao salvar no Neon Drive: $e');
+      debugPrint('Erro: $e');
     }
   }
 
@@ -72,16 +84,17 @@ class AccountManager extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_savedTagsKey, json.encode(_savedTags));
     } catch (e) {
-      debugPrint('Erro ao salvar tags globais: $e');
+      debugPrint('Erro: $e');
     }
   }
 
   bool addGlobalTag(String tag) {
-    final cleanTag = tag.trim();
+    final cleanTag = tag.trim().toUpperCase(); // Salva em maíusculo pra ficar bonito
     if (cleanTag.isEmpty) return false;
     if (_savedTags.contains(cleanTag)) return true; 
     
-    if (_savedTags.length >= 3) {
+    int limite = _isPremium ? 10 : 3;
+    if (_savedTags.length >= limite) {
       return false; 
     }
     
@@ -93,6 +106,14 @@ class AccountManager extends ChangeNotifier {
 
   void removeGlobalTag(String tag) {
     _savedTags.remove(tag);
+    // Também limpa essa tag de todas as contas para não quebrar a sincronia
+    for (var i = 0; i < _accounts.length; i++) {
+      if (_accounts[i].tags.contains(tag)) {
+        final newTags = List<String>.from(_accounts[i].tags)..remove(tag);
+        _accounts[i] = _accounts[i].copyWith(tags: newTags);
+      }
+    }
+    _saveAccounts();
     _saveGlobalTags();
     notifyListeners();
   }
