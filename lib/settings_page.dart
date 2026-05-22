@@ -238,95 +238,127 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final manager = context.watch<AccountManager>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'EXTRA / SETUP',
-          style: GoogleFonts.orbitron(
-            color: VaporwaveColors.neonCyan,
-            fontWeight: FontWeight.bold,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'SETUP',
+            style: GoogleFonts.orbitron(
+              color: VaporwaveColors.neonCyan,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          bottom: TabBar(
+            indicatorColor: VaporwaveColors.neonPink,
+            labelColor: VaporwaveColors.neonPink,
+            unselectedLabelColor: Colors.white54,
+            labelStyle: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold),
+            tabs: const [
+              Tab(icon: Icon(Icons.palette), text: 'VISUAL'),
+              Tab(icon: Icon(Icons.security), text: 'COFRE'),
+              Tab(icon: Icon(Icons.terminal), text: 'SISTEMA'),
+            ],
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        body: TabBarView(
           children: [
-            Icon(Icons.settings_system_daydream, size: 80, color: VaporwaveColors.neonPink),
-            const SizedBox(height: AppSpacing.xl),
-            
-            Text('INTERFACE', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 22, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
-            const SizedBox(height: AppSpacing.md),
-            _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', const Color(0xFFFF00FF), const Color(0xFF00FFFF)),
-            const SizedBox(height: AppSpacing.sm),
-            _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', const Color(0xFF00FFFF), const Color(0xFFFCEE09)),
-            const SizedBox(height: AppSpacing.sm),
-            _buildThemeButton(context, 'Outrun Laranja', 'outrun', const Color(0xFFFF6600), const Color(0xFFE0AAFF)),
-
-            const SizedBox(height: AppSpacing.xxl),
-            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
-            const SizedBox(height: AppSpacing.xxl),
-
-            Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 22, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
-              child: ElevatedButton.icon(
-                onPressed: () => _exportData(context),
-                icon: const Icon(Icons.lock_outline),
-                label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
-              ),
-            ),
-            
-            const SizedBox(height: AppSpacing.xl),
-            TextField(
-              controller: _importController,
-              maxLines: 4,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              decoration: InputDecoration(
-                hintText: 'Cole o código encriptado aqui...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                filled: true,
-                fillColor: VaporwaveColors.surfaceVariant,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ElevatedButton.icon(
-              onPressed: () => _importData(context),
-              icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
-              label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: VaporwaveColors.neonYellow,
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            // --- ABA 1: VISUAL (TEMAS) ---
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', const Color(0xFFFF00FF), const Color(0xFF00FFFF)),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', const Color(0xFF00FFFF), const Color(0xFFFCEE09)),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildThemeButton(context, 'Outrun Laranja', 'outrun', const Color(0xFFFF6600), const Color(0xFFE0AAFF)),
+                ],
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xxl),
-            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
-            const SizedBox(height: AppSpacing.xl),
-
-            // --- BOTÃO DE DESENVOLVEDOR ---
-            Text('FERRAMENTAS DE DESENVOLVEDOR', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 14, color: VaporwaveColors.neonPink)),
-            const SizedBox(height: AppSpacing.md),
-            SwitchListTile(
-              title: Text('Forçar Status VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white)),
-              subtitle: Text('Permite criar até 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-              value: manager.isPremium,
-              activeColor: VaporwaveColors.neonYellow,
-              onChanged: (bool value) {
-                manager.togglePremium();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(value ? 'Plano Premium Ativado!' : 'Plano Free Ativado.', style: const TextStyle(color: Colors.white)),
-                    backgroundColor: value ? VaporwaveColors.neonYellow : VaporwaveColors.surfaceVariant,
+            // --- ABA 2: COFRE (BACKUPS) ---
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: ElevatedButton.icon(
+                      onPressed: () => _exportData(context),
+                      icon: const Icon(Icons.lock_outline),
+                      label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
+                    ),
                   ),
-                );
-              },
+                  
+                  const SizedBox(height: AppSpacing.xl),
+                  TextField(
+                    controller: _importController,
+                    maxLines: 4,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: 'Cole o código encriptado aqui...',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                      filled: true,
+                      fillColor: VaporwaveColors.surfaceVariant,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  ElevatedButton.icon(
+                    onPressed: () => _importData(context),
+                    icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
+                    label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: VaporwaveColors.neonYellow,
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+
+            // --- ABA 3: SISTEMA (DEV E PREMIUM) ---
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('FERRAMENTAS GERAIS', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
+                  const SizedBox(height: AppSpacing.md),
+                  
+                  Container(
+                    decoration: BoxDecoration(
+                      color: VaporwaveColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: VaporwaveColors.neonPurple),
+                    ),
+                    child: SwitchListTile(
+                      title: Text('Forçar Status VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text('Ativa o limite de 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      value: manager.isPremium,
+                      activeColor: VaporwaveColors.neonYellow,
+                      onChanged: (bool value) {
+                        manager.togglePremium();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(value ? 'Plano Premium Ativado!' : 'Plano Free Ativado.', style: const TextStyle(color: Colors.white)),
+                            backgroundColor: value ? VaporwaveColors.neonYellow : VaporwaveColors.surfaceVariant,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
