@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppSpacing {
   static const double xs = 4.0;
@@ -95,7 +96,6 @@ class VaporwaveColors {
   }
 }
 
-// ADICIONADOS: As definições que faltavam
 List<BoxShadow> get neonGlowPink => [
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
