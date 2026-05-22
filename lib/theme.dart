@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppSpacing {
   static const double xs = 4.0;
@@ -34,7 +33,78 @@ class VaporwaveColors {
   static const Color matrixSecondary = Color(0xFF003B00);
   static const Color deepBluePrimary = Color(0xFF0055FF);
   static const Color deepBlueSecondary = Color(0xFF001144);
+
+  static void loadVaporwave() {
+    background = const Color(0xFF0D0221);
+    surface = const Color(0xFF1B0330);
+    surfaceVariant = const Color(0xFF2E094F);
+    neonPink = const Color(0xFFFF00FF);
+    neonCyan = const Color(0xFF00FFFF);
+    neonPurple = const Color(0xFF9D00FF);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
+  }
+
+  static void loadCyberpunk() {
+    background = const Color(0xFF090909);
+    surface = const Color(0xFF1C1C1C);
+    surfaceVariant = const Color(0xFF2D2D2D);
+    neonPink = const Color(0xFF00FFFF);
+    neonCyan = const Color(0xFFFCEE09);
+    neonPurple = const Color(0xFFFF003C);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
+  }
+
+  static void loadOutrun() {
+    background = const Color(0xFF10002B);
+    surface = const Color(0xFF240046);
+    surfaceVariant = const Color(0xFF3C096C);
+    neonPink = const Color(0xFFFF6600);
+    neonCyan = const Color(0xFFE0AAFF);
+    neonPurple = const Color(0xFF5A189A);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
+  }
+
+  static void loadAqua() {
+    background = const Color(0xFF001F3F);
+    surface = const Color(0xFF003366);
+    surfaceVariant = const Color(0xFF004A99);
+    neonPink = const Color(0xFF00D2FF);
+    neonCyan = const Color(0xFF7FFFD4);
+    neonPurple = const Color(0xFF00BFFF);
+  }
+
+  static void loadMatrix() {
+    background = const Color(0xFF000000);
+    surface = const Color(0xFF0D140D);
+    surfaceVariant = const Color(0xFF1B261B);
+    neonPink = const Color(0xFF00FF41);
+    neonCyan = const Color(0xFF39FF14);
+    neonPurple = const Color(0xFF008F11);
+  }
+
+  static void loadDeepBlue() {
+    background = const Color(0xFF000510);
+    surface = const Color(0xFF001020);
+    surfaceVariant = const Color(0xFF002040);
+    neonPink = const Color(0xFF0055FF);
+    neonCyan = const Color(0xFF00C3FF);
+    neonPurple = const Color(0xFF001144);
+  }
 }
+
+// ADICIONADOS: As definições que faltavam
+List<BoxShadow> get neonGlowPink => [
+      BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
+      BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
+    ];
+
+List<BoxShadow> get neonGlowCyan => [
+      BoxShadow(color: VaporwaveColors.neonCyan.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
+      BoxShadow(color: VaporwaveColors.neonCyan.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
+    ];
 
 class ThemeProvider with ChangeNotifier {
   String _currentTheme = 'vaporwave';
@@ -47,67 +117,35 @@ class ThemeProvider with ChangeNotifier {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     _currentTheme = prefs.getString('app_theme') ?? 'vaporwave';
+    _applyTheme(_currentTheme);
     notifyListeners();
   }
 
   Future<void> changeTheme(String themeName) async {
     _currentTheme = themeName;
+    _applyTheme(themeName);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_theme', themeName);
     notifyListeners();
   }
 
-  // MÉTODO DINÂMICO QUE O MAIN.DART VAI CHAMAR
-  ThemeData getThemeData() {
-    Color primary;
-    Color secondary;
-    Color background;
-    Color surface;
-    Color surfaceVariant;
-
-    switch (_currentTheme) {
-      case 'cyberpunk':
-        primary = VaporwaveColors.neonCyan;
-        secondary = VaporwaveColors.neonYellow;
-        background = const Color(0xFF090909);
-        surface = const Color(0xFF1C1C1C);
-        surfaceVariant = const Color(0xFF2D2D2D);
-        break;
-      case 'outrun':
-        primary = VaporwaveColors.neonRed;
-        secondary = VaporwaveColors.neonPurple;
-        background = const Color(0xFF10002B);
-        surface = const Color(0xFF240046);
-        surfaceVariant = const Color(0xFF3C096C);
-        break;
-      case 'aqua':
-        primary = VaporwaveColors.aquaPrimary;
-        secondary = VaporwaveColors.aquaSecondary;
-        background = const Color(0xFF001F3F);
-        surface = const Color(0xFF003366);
-        surfaceVariant = const Color(0xFF004A99);
-        break;
-      case 'matrix':
-        primary = VaporwaveColors.matrixPrimary;
-        secondary = VaporwaveColors.matrixSecondary;
-        background = const Color(0xFF000000);
-        surface = const Color(0xFF0D140D);
-        surfaceVariant = const Color(0xFF1B261B);
-        break;
-      case 'deepblue':
-        primary = VaporwaveColors.deepBluePrimary;
-        secondary = VaporwaveColors.deepBlueSecondary;
-        background = const Color(0xFF000510);
-        surface = const Color(0xFF001020);
-        surfaceVariant = const Color(0xFF002040);
-        break;
-      default: // vaporwave
-        primary = VaporwaveColors.neonPink;
-        secondary = VaporwaveColors.neonCyan;
-        background = const Color(0xFF0D0221);
-        surface = const Color(0xFF1B0330);
-        surfaceVariant = const Color(0xFF2E094F);
+  void _applyTheme(String theme) {
+    switch (theme) {
+      case 'cyberpunk': VaporwaveColors.loadCyberpunk(); break;
+      case 'outrun': VaporwaveColors.loadOutrun(); break;
+      case 'aqua': VaporwaveColors.loadAqua(); break;
+      case 'matrix': VaporwaveColors.loadMatrix(); break;
+      case 'deepblue': VaporwaveColors.loadDeepBlue(); break;
+      default: VaporwaveColors.loadVaporwave(); break;
     }
+  }
+
+  ThemeData getThemeData() {
+    Color primary = VaporwaveColors.neonPink;
+    Color secondary = VaporwaveColors.neonCyan;
+    Color background = VaporwaveColors.background;
+    Color surface = VaporwaveColors.surface;
+    Color surfaceVariant = VaporwaveColors.surfaceVariant;
 
     return ThemeData(
       useMaterial3: true,
