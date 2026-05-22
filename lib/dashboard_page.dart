@@ -23,25 +23,76 @@ class _DashboardPageState extends State<DashboardPage> {
     super.dispose();
   }
 
+  void _showAddTagDialog(BuildContext context, AccountManager manager) {
+    final tagController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: VaporwaveColors.surfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: VaporwaveColors.neonPink, width: 2),
+        ),
+        title: Text('FORJAR NOVA TAG', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan)),
+        content: TextField(
+          controller: tagController,
+          style: const TextStyle(color: Colors.white),
+          maxLength: 15,
+          decoration: InputDecoration(
+            hintText: 'Ex: GAMES',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            filled: true,
+            fillColor: VaporwaveColors.surface,
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: VaporwaveColors.neonPurple)),
+            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: VaporwaveColors.neonCyan)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonCyan),
+            onPressed: () {
+              final val = tagController.text.trim();
+              if (val.isNotEmpty) {
+                final success = manager.addGlobalTag(val);
+                Navigator.pop(context);
+                if (success) {
+                  setState(() => _selectedTag = val.toUpperCase());
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(manager.isPremium ? 'Limite de 10 tags Premium atingido!' : 'Limite Free de 3 tags atingido. Assine o Premium!', style: const TextStyle(color: Colors.white)),
+                      backgroundColor: VaporwaveColors.neonRed,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('SALVAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<AccountManager>();
-    
     var displayList = manager.searchAccounts(_searchController.text.trim());
     
     if (_selectedTag != 'Todas') {
       displayList = displayList.where((account) => account.tags.contains(_selectedTag)).toList();
     }
 
+    // Montando a lista do menu
+    List<String> dropdownOptions = ['Todas', ...manager.savedTags, '+ Nova Tag'];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'GERENCIADOR',
-          style: GoogleFonts.orbitron(
-            color: VaporwaveColors.neonCyan,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text('GERENCIADOR', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
@@ -51,10 +102,7 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Expanded(
                   child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: neonGlowCyan,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
+                    decoration: BoxDecoration(boxShadow: neonGlowCyan, borderRadius: BorderRadius.circular(AppRadius.md)),
                     child: TextField(
                       controller: _searchController,
                       onChanged: (_) => setState(() {}), 
@@ -65,10 +113,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         prefixIcon: Icon(Icons.search, color: VaporwaveColors.neonCyan),
                         filled: true,
                         fillColor: VaporwaveColors.surfaceVariant,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: BorderSide.none,
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
                       ),
                     ),
                   ),
@@ -85,23 +130,27 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
-                      value: manager.savedTags.contains(_selectedTag) || _selectedTag == 'Todas' 
-                          ? _selectedTag 
-                          : 'Todas',
+                      value: dropdownOptions.contains(_selectedTag) ? _selectedTag : 'Todas',
                       dropdownColor: VaporwaveColors.surfaceVariant,
                       icon: Icon(Icons.label, color: VaporwaveColors.neonPink),
                       style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                       onChanged: (String? newValue) {
-                        if (newValue != null) {
+                        if (newValue == '+ Nova Tag') {
+                          _showAddTagDialog(context, manager);
+                        } else if (newValue != null) {
                           setState(() {
                             _selectedTag = newValue;
                           });
                         }
                       },
-                      items: ['Todas', ...manager.savedTags].map<DropdownMenuItem<String>>((String value) {
+                      items: dropdownOptions.map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value == 'Todas' ? 'TAGS: TODAS' : '# $value'),
+                          child: Text(
+                            value == 'Todas' ? 'TAGS: TODAS' : 
+                            value == '+ Nova Tag' ? '+ ADD TAG' : '# $value',
+                            style: value == '+ Nova Tag' ? TextStyle(color: VaporwaveColors.neonYellow) : null,
+                          ),
                         );
                       }).toList(),
                     ),
@@ -115,21 +164,12 @@ class _DashboardPageState extends State<DashboardPage> {
             child: manager.isLoading
                 ? Center(child: CircularProgressIndicator(color: VaporwaveColors.neonCyan))
                 : displayList.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Nenhum registro encontrado.',
-                          style: GoogleFonts.chakraPetch(color: Colors.white38, fontSize: 16),
-                        ),
-                      )
+                    ? Center(child: Text('Nenhum registro encontrado.', style: GoogleFonts.chakraPetch(color: Colors.white38, fontSize: 16)))
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                         itemCount: displayList.length,
                         itemBuilder: (context, index) {
-                          final account = displayList[index];
-                          return AccountCard(
-                            key: ValueKey(account.id),
-                            account: account,
-                          );
+                          return AccountCard(key: ValueKey(displayList[index].id), account: displayList[index]);
                         },
                       ),
           ),
