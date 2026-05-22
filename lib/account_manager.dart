@@ -2,14 +2,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as enc;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
   static const String _savedTagsKey = 'vaporwave_global_tags'; 
   static const String _premiumKey = 'vaporwave_is_premium'; 
+  static const String _internalKeyName = 'vapor_hardware_master_key'; 
   
   final _iv = enc.IV.fromLength(16);
+  final _secureStorage = const FlutterSecureStorage();
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
@@ -30,6 +34,21 @@ class AccountManager extends ChangeNotifier {
     _loadAccounts();
   }
 
+  // --- NÚCLEO DE SEGURANÇA (CRIPTOGRAFIA EM REPOUSO) ---
+  
+  // Gera e recupera uma chave mestre única presa ao hardware do celular
+  Future<enc.Key> _getInternalMasterKey() async {
+    String? base64Key = await _secureStorage.read(key: _internalKeyName);
+    if (base64Key == null) {
+      // Se não existir, cria uma nova chave de 32 bytes e salva no Keystore
+      final secureRandom = enc.Key.fromSecureRandom(32);
+      base64Key = secureRandom.base64;
+      await _secureStorage.write(key: _internalKeyName, value: base64Key);
+    }
+    return enc.Key.fromBase64(base64Key);
+  }
+
+  // Chave derivada para a exportação (onde o usuário digita a senha dele)
   enc.Key _getKeyFromPassword(String password) {
     final salted = password + 'VaporManagerCyberVaultSecretK3y!';
     return enc.Key.fromUtf8(salted.substring(0, 32));
@@ -39,19 +58,46 @@ class AccountManager extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
+      final masterKey = await _getInternalMasterKey();
+      final encrypter = enc.Encrypter(enc.AES(masterKey));
 
-      final String? accountsJson = prefs.getString(_storageKey);
-      if (accountsJson != null) {
-        final List<dynamic> decodedList = json.decode(accountsJson);
+      // 1. CARREGAR CONTAS
+      final String? accountsData = prefs.getString(_storageKey);
+      if (accountsData != null) {
+        String jsonString;
+        try {
+          // Tenta desencriptar (Formato Novo Seguro)
+          jsonString = encrypter.decrypt64(accountsData, iv: _iv);
+        } catch (e) {
+          // Se falhar, assume que é do Formato Antigo (Texto Limpo) e converte
+          jsonString = accountsData;
+          debugPrint('Migrando banco de contas para formato encriptado...');
+        }
+        final List<dynamic> decodedList = json.decode(jsonString);
         _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
 
-      final String? tagsJson = prefs.getString(_savedTagsKey);
-      if (tagsJson != null) {
-        _savedTags = List<String>.from(json.decode(tagsJson));
+      // 2. CARREGAR TAGS GLOBAIS
+      final String? tagsData = prefs.getString(_savedTagsKey);
+      if (tagsData != null) {
+        String tagsJsonString;
+        try {
+          tagsJsonString = encrypter.decrypt64(tagsData, iv: _iv);
+        } catch (e) {
+          tagsJsonString = tagsData;
+          debugPrint('Migrando banco de tags para formato encriptado...');
+        }
+        _savedTags = List<String>.from(json.decode(tagsJsonString));
       }
+
+      // Se passou por uma migração, salva imediatamente no novo formato blindado
+      if (accountsData != null || tagsData != null) {
+        _saveAccounts();
+        _saveGlobalTags();
+      }
+
     } catch (e) {
-      debugPrint('Erro ao carregar dados: $e');
+      debugPrint('Erro ao carregar/desencriptar dados: $e');
       _accounts = [];
       _savedTags = [];
     } finally {
@@ -60,21 +106,48 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // LÓGICA DE DOWNGRADE IMPLEMENTADA AQUI
+  Future<void> _saveAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final masterKey = await _getInternalMasterKey();
+      final encrypter = enc.Encrypter(enc.AES(masterKey));
+      
+      final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
+      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
+      
+      await prefs.setString(_storageKey, encryptedData);
+    } catch (e) {
+      debugPrint('Erro crítico ao encriptar o cofre: $e');
+    }
+  }
+
+  Future<void> _saveGlobalTags() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final masterKey = await _getInternalMasterKey();
+      final encrypter = enc.Encrypter(enc.AES(masterKey));
+      
+      final String jsonString = json.encode(_savedTags);
+      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
+      
+      await prefs.setString(_savedTagsKey, encryptedData);
+    } catch (e) {
+      debugPrint('Erro ao salvar tags encriptadas: $e');
+    }
+  }
+
+  // --- LÓGICA DE NEGÓCIO DO APP ---
+
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, _isPremium);
 
     if (!_isPremium && _savedTags.length > 3) {
-      // Pega as tags que serão deletadas
       final tagsToRemove = _savedTags.sublist(3);
-      
-      // Mantém só as 3 mais antigas na biblioteca global
       _savedTags = _savedTags.sublist(0, 3);
       await _saveGlobalTags();
 
-      // Limpa as tags deletadas de todas as contas do cofre
       for (var i = 0; i < _accounts.length; i++) {
         final newTags = _accounts[i].tags.where((t) => !tagsToRemove.contains(t)).toList();
         if (newTags.length != _accounts[i].tags.length) {
@@ -84,16 +157,6 @@ class AccountManager extends ChangeNotifier {
       await _saveAccounts();
     }
     notifyListeners();
-  }
-
-  Future<void> _saveAccounts() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, json.encode(_accounts.map((a) => a.toMap()).toList()));
-  }
-
-  Future<void> _saveGlobalTags() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_savedTagsKey, json.encode(_savedTags));
   }
 
   bool addGlobalTag(String tag) {
@@ -185,6 +248,7 @@ class AccountManager extends ChangeNotifier {
     }).toList();
   }
 
+  // Exportar para fora do aparelho usa a senha que o usuário digitar (mantido como estava)
   String exportData(String password) {
     try {
       final jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
