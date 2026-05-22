@@ -10,6 +10,7 @@ class Account {
   int daysLeft;
   bool isReady;
   bool isFavorite;
+  bool hasExpiration; // NOVO: Controle de conta vitalícia
   String category;
   List<String> tags;
   DateTime createdAt;
@@ -25,6 +26,7 @@ class Account {
     this.daysLeft = 0,
     this.isReady = true,
     this.isFavorite = false,
+    this.hasExpiration = true, 
     String category = 'Outros',
     List<String>? tags,
     DateTime? createdAt,
@@ -33,10 +35,11 @@ class Account {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now(),
         category = category.isEmpty ? 'Outros' : category,
-        tags = tags != null ? List<String>.from(tags) : [], // Tags agora começam 100% vazias!
+        tags = tags != null ? List<String>.from(tags) : [],
         id = id ?? const Uuid().v4();
 
   Duration remaining(DateTime now) {
+    if (!hasExpiration) return const Duration(days: 9999); // Simula infinito
     final end = expiresAt;
     if (end == null) return Duration(days: daysLeft);
     final diff = end.difference(now);
@@ -52,6 +55,7 @@ class Account {
     int? daysLeft,
     bool? isReady,
     bool? isFavorite,
+    bool? hasExpiration,
     String? category,
     List<String>? tags,
     DateTime? createdAt,
@@ -67,6 +71,7 @@ class Account {
       daysLeft: daysLeft ?? this.daysLeft,
       isReady: isReady ?? this.isReady,
       isFavorite: isFavorite ?? this.isFavorite,
+      hasExpiration: hasExpiration ?? this.hasExpiration,
       category: category ?? this.category,
       tags: tags ?? this.tags,
       createdAt: createdAt ?? this.createdAt,
@@ -85,6 +90,7 @@ class Account {
       'daysLeft': daysLeft,
       'isReady': isReady,
       'isFavorite': isFavorite,
+      'hasExpiration': hasExpiration,
       'category': category,
       'tags': tags,
       'createdAtMs': createdAt.millisecondsSinceEpoch,
@@ -95,10 +101,6 @@ class Account {
 
   factory Account.fromMap(Map<String, dynamic> map) {
     final now = DateTime.now();
-    final createdAtMs = map['createdAtMs'];
-    final updatedAtMs = map['updatedAtMs'];
-    final expiresAtMs = map['expiresAtMs'];
-
     DateTime safeDate(dynamic ms, DateTime fallback) {
       if (ms is int) return DateTime.fromMillisecondsSinceEpoch(ms);
       if (ms is String) {
@@ -108,27 +110,10 @@ class Account {
       return fallback;
     }
 
-    final createdAt = safeDate(createdAtMs, now);
-    final updatedAt = safeDate(updatedAtMs, createdAt);
-    final int legacyDays = (map['daysLeft'] is int) ? (map['daysLeft'] as int) : int.tryParse('${map['daysLeft']}') ?? 0;
-    final String legacyCategory = (map['category'] ?? 'Outros').toString();
-
+    final createdAt = safeDate(map['createdAtMs'], now);
     List<String> parseTags(dynamic raw) {
-      if (raw is List) {
-        return raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
-      }
-      if (raw is String && raw.trim().isNotEmpty) {
-        return [raw.trim()];
-      }
-      return []; // Limpando legado
-    }
-
-    final tags = parseTags(map['tags']);
-    DateTime? expiresAt;
-    if (expiresAtMs != null) {
-      expiresAt = safeDate(expiresAtMs, now);
-    } else if (legacyDays > 0) {
-      expiresAt = createdAt.add(Duration(days: legacyDays));
+      if (raw is List) return raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
+      return [];
     }
 
     return Account(
@@ -137,14 +122,15 @@ class Account {
       email: map['email'] ?? '',
       password: map['password'] ?? '',
       description: map['description'] ?? '',
-      daysLeft: legacyDays,
+      daysLeft: map['daysLeft'] is int ? map['daysLeft'] : 0,
       isReady: map['isReady'] ?? true,
       isFavorite: map['isFavorite'] ?? false,
-      category: legacyCategory,
-      tags: tags,
+      hasExpiration: map['hasExpiration'] ?? true, // Contas antigas terão expiração por padrão
+      category: map['category'] ?? 'Outros',
+      tags: parseTags(map['tags']),
       createdAt: createdAt,
-      updatedAt: updatedAt,
-      expiresAt: expiresAt,
+      updatedAt: safeDate(map['updatedAtMs'], createdAt),
+      expiresAt: map['expiresAtMs'] != null ? safeDate(map['expiresAtMs'], now) : null,
     );
   }
 
