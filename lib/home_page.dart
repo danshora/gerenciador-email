@@ -103,7 +103,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _passwordController.text = res;
   }
 
-
   // --- POP-UPS DE CONFIGURAÇÃO (BOTÃO DA ENGRENAGEM) ---
 
   void _showEmailForgeDialog() {
@@ -167,7 +166,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   final prefix = prefixController.text.trim().isEmpty ? _generateRandomPrefix() : prefixController.text.trim();
                   final domain = _emailDomain == 'Customizado' ? _customDomain : _emailDomain;
                   final finalDomain = domain.startsWith('@') ? domain : (domain.isEmpty ? '@gmail.com' : '@$domain');
-                  _emailController.text = '$prefix$finalDomain'; // Gera e aplica
+                  _emailController.text = '$prefix$finalDomain'; 
                   Navigator.pop(context);
                 },
                 child: Text('SALVAR E GERAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
@@ -227,7 +226,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow),
                 onPressed: () {
-                  _quickGeneratePassword(); // Gera usando as novas configs
+                  _quickGeneratePassword(); 
                   Navigator.pop(context);
                 },
                 child: Text('SALVAR E GERAR', style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
@@ -261,4 +260,130 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       SnackBar(content: const Text('Dados forjados com sucesso!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen),
     );
 
-    _
+    _titleController.clear();
+    _emailController.clear();
+    _passwordController.clear();
+    setState(() => _hasExpiration = true); 
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller, 
+    required String label, 
+    required String hintText, 
+    required IconData icon, 
+    bool isPassword = false, 
+    VoidCallback? onGenerate, 
+    VoidCallback? onSettings, 
+    VoidCallback? onCopy
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 14)),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(boxShadow: neonGlowCyan, borderRadius: BorderRadius.circular(AppRadius.md)),
+                  child: TextField(
+                    controller: controller, obscureText: isPassword, style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(prefixIcon: Icon(icon, color: VaporwaveColors.neonCyan), hintText: hintText, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none), filled: true, fillColor: VaporwaveColors.surface),
+                  ),
+                ),
+              ),
+              if (onGenerate != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(onPressed: onGenerate, icon: Icon(Icons.casino, color: VaporwaveColors.neonYellow), tooltip: 'Gerar Rápido'),
+              ],
+              if (onSettings != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(onPressed: onSettings, icon: Icon(Icons.settings_suggest, color: VaporwaveColors.neonCyan), tooltip: 'Configurações'),
+              ],
+              if (onCopy != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(onPressed: onCopy, icon: Icon(Icons.copy, color: VaporwaveColors.neonPink), tooltip: 'Copiar'),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: AppSpacing.xl),
+              Center(
+                child: AnimatedBuilder(
+                  animation: _glowController,
+                  builder: (context, child) {
+                    return Column(
+                      children: [
+                        Text('CYBER-FORJA', style: GoogleFonts.orbitron(fontSize: 32, fontWeight: FontWeight.bold, color: VaporwaveColors.neonPink, shadows: [Shadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.5 + (_glowController.value * 0.5)), blurRadius: 10 + (_glowController.value * 15))])),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text('Forje novas credenciais ou gere acessos\ncom parâmetros avançados.', textAlign: TextAlign.center, style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 13, height: 1.4)),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              
+              _buildTextField(
+                controller: _titleController, label: 'Identificador do Serviço', hintText: 'Ex: Steam, Banco...', icon: Icons.title
+              ),
+              
+              _buildTextField(
+                controller: _emailController, label: 'Usuário / E-mail', hintText: 'Digite ou gere um login', icon: Icons.person, 
+                onGenerate: _quickGenerateEmail,
+                onSettings: _showEmailForgeDialog, 
+                onCopy: () => _copyToClipboardSecure(_emailController.text, 'Login')
+              ),
+              
+              _buildTextField(
+                controller: _passwordController, label: 'Senha de Acesso', hintText: 'Digite ou gere uma senha', icon: Icons.lock, isPassword: true, 
+                onGenerate: _quickGeneratePassword, 
+                onSettings: _showPasswordForgeDialog, 
+                onCopy: () => _copyToClipboardSecure(_passwordController.text, 'Senha', isSensitive: true)
+              ),
+              
+              SwitchListTile(
+                title: Text('Ativar Cronômetro de Validade?', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan)),
+                subtitle: Text(_hasExpiration ? 'A conta vencerá em 30 dias (pode alterar depois).' : 'Conta permanente. Nunca irá expirar.', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                value: _hasExpiration,
+                activeColor: VaporwaveColors.neonCyan,
+                onChanged: (val) => setState(() => _hasExpiration = val),
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+              
+              AnimatedBuilder(
+                animation: _glowController,
+                builder: (context, child) {
+                  return Container(
+                    decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: ElevatedButton(
+                      onPressed: _saveAccount,
+                      style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.surfaceVariant, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg), side: BorderSide(color: VaporwaveColors.neonPink.withValues(alpha: 0.8 + (_glowController.value * 0.2)), width: 2)),
+                      child: Text('FORJAR ACESSO', style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonPink, letterSpacing: 2)),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
