@@ -35,7 +35,7 @@ class _AppNavigationState extends State<AppNavigation> {
           BottomNavigationBarItem(
             icon: const Icon(Icons.add_circle_outline),
             activeIcon: Icon(Icons.add_box, color: VaporwaveColors.neonPink),
-            label: 'Nova Conta',
+            label: 'Gerador', // ABA ATUALIZADA AQUI
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.list),
