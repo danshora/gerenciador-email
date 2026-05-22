@@ -149,7 +149,6 @@ class _AccountCardState extends State<AccountCard> {
                 color: VaporwaveColors.surfaceVariant,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm), side: BorderSide(color: VaporwaveColors.neonPurple)),
                 onSelected: (int val) async {
-                  // SE FOR -1, ABRE O SELETOR DE CALENDÁRIO CUSTOMIZADO
                   if (val == -1) {
                     final DateTime? picked = await showDatePicker(
                       context: context,
@@ -172,7 +171,6 @@ class _AccountCardState extends State<AccountCard> {
                       },
                     );
                     if (picked != null) {
-                      // Calcula a diferença exata de dias da data escolhida
                       final days = picked.difference(DateTime.now()).inDays + 1;
                       manager.setDays(widget.account.id, days);
                     }
