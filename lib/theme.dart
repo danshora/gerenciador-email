@@ -1,195 +1,174 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'account.dart';
-import 'account_manager.dart';
-import 'theme.dart'; // <- ESTA É A LINHA QUE ESTAVA FALTANDO!
-
-class AccountCard extends StatefulWidget {
-  final Account account;
-  const AccountCard({super.key, required this.account});
-
-  @override
-  State<AccountCard> createState() => _AccountCardState();
+class AppSpacing {
+  static const double xs = 4.0;
+  static const double sm = 8.0;
+  static const double md = 16.0;
+  static const double lg = 24.0;
+  static const double xl = 32.0;
+  static const double xxl = 48.0;
 }
 
-class _AccountCardState extends State<AccountCard> {
-  late TextEditingController _titleController;
-  late TextEditingController _descController;
-  
-  late List<String> _currentTags;
-  bool _isEditing = false;
-  bool _showPassword = false;
-  Timer? _ticker;
+class AppRadius {
+  static const double sm = 8.0;
+  static const double md = 12.0;
+  static const double lg = 16.0;
+}
 
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.account.title);
-    _descController = TextEditingController(text: widget.account.description);
-    _currentTags = List.from(widget.account.tags);
+class VaporwaveColors {
+  static Color background = const Color(0xFF0D0221);
+  static Color surface = const Color(0xFF1B0330);
+  static Color surfaceVariant = const Color(0xFF2E094F);
+  static Color neonPink = const Color(0xFFFF00FF);
+  static Color neonCyan = const Color(0xFF00FFFF);
+  static Color neonPurple = const Color(0xFF9D00FF);
+  static Color neonYellow = const Color(0xFFFFCC00);
+  static Color neonGreen = const Color(0xFF39FF14);
+  static Color neonRed = const Color(0xFFFF073A);
 
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {});
-    });
+  static const Color aquaPrimary = Color(0xFF00D2FF);
+  static const Color aquaSecondary = Color(0xFF3A7BD5);
+  static const Color matrixPrimary = Color(0xFF00FF41);
+  static const Color matrixSecondary = Color(0xFF003B00);
+  static const Color deepBluePrimary = Color(0xFF0055FF);
+  static const Color deepBlueSecondary = Color(0xFF001144);
+
+  static void loadVaporwave() {
+    background = const Color(0xFF0D0221);
+    surface = const Color(0xFF1B0330);
+    surfaceVariant = const Color(0xFF2E094F);
+    neonPink = const Color(0xFFFF00FF);
+    neonCyan = const Color(0xFF00FFFF);
+    neonPurple = const Color(0xFF9D00FF);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
   }
 
-  @override
-  void didUpdateWidget(covariant AccountCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.account.id != widget.account.id) {
-      _titleController.text = widget.account.title;
-      _descController.text = widget.account.description;
-      _currentTags = List.from(widget.account.tags);
+  static void loadCyberpunk() {
+    background = const Color(0xFF090909);
+    surface = const Color(0xFF1C1C1C);
+    surfaceVariant = const Color(0xFF2D2D2D);
+    neonPink = const Color(0xFF00FFFF);
+    neonCyan = const Color(0xFFFCEE09);
+    neonPurple = const Color(0xFFFF003C);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
+  }
+
+  static void loadOutrun() {
+    background = const Color(0xFF10002B);
+    surface = const Color(0xFF240046);
+    surfaceVariant = const Color(0xFF3C096C);
+    neonPink = const Color(0xFFFF6600);
+    neonCyan = const Color(0xFFE0AAFF);
+    neonPurple = const Color(0xFF5A189A);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
+  }
+
+  static void loadAqua() {
+    background = const Color(0xFF001F3F);
+    surface = const Color(0xFF003366);
+    surfaceVariant = const Color(0xFF004A99);
+    neonPink = const Color(0xFF00D2FF);
+    neonCyan = const Color(0xFF7FFFD4);
+    neonPurple = const Color(0xFF00BFFF);
+  }
+
+  static void loadMatrix() {
+    background = const Color(0xFF000000);
+    surface = const Color(0xFF0D140D);
+    surfaceVariant = const Color(0xFF1B261B);
+    neonPink = const Color(0xFF00FF41);
+    neonCyan = const Color(0xFF39FF14);
+    neonPurple = const Color(0xFF008F11);
+  }
+
+  static void loadDeepBlue() {
+    background = const Color(0xFF000510);
+    surface = const Color(0xFF001020);
+    surfaceVariant = const Color(0xFF002040);
+    neonPink = const Color(0xFF0055FF);
+    neonCyan = const Color(0xFF00C3FF);
+    neonPurple = const Color(0xFF001144);
+  }
+}
+
+List<BoxShadow> get neonGlowPink => [
+      BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
+      BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
+    ];
+
+List<BoxShadow> get neonGlowCyan => [
+      BoxShadow(color: VaporwaveColors.neonCyan.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
+      BoxShadow(color: VaporwaveColors.neonCyan.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
+    ];
+
+class ThemeProvider with ChangeNotifier {
+  String _currentTheme = 'vaporwave';
+  String get currentTheme => _currentTheme;
+
+  ThemeProvider() {
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentTheme = prefs.getString('app_theme') ?? 'vaporwave';
+    _applyTheme(_currentTheme);
+    notifyListeners();
+  }
+
+  Future<void> changeTheme(String themeName) async {
+    _currentTheme = themeName;
+    _applyTheme(themeName);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_theme', themeName);
+    notifyListeners();
+  }
+
+  void _applyTheme(String theme) {
+    switch (theme) {
+      case 'cyberpunk': VaporwaveColors.loadCyberpunk(); break;
+      case 'outrun': VaporwaveColors.loadOutrun(); break;
+      case 'aqua': VaporwaveColors.loadAqua(); break;
+      case 'matrix': VaporwaveColors.loadMatrix(); break;
+      case 'deepblue': VaporwaveColors.loadDeepBlue(); break;
+      default: VaporwaveColors.loadVaporwave(); break;
     }
   }
 
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    _titleController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
+  ThemeData getThemeData() {
+    Color primary = VaporwaveColors.neonPink;
+    Color secondary = VaporwaveColors.neonCyan;
+    Color background = VaporwaveColors.background;
+    Color surface = VaporwaveColors.surface;
+    Color surfaceVariant = VaporwaveColors.surfaceVariant;
 
-  void _saveEdits() {
-    final updated = Account(
-      id: widget.account.id,
-      title: _titleController.text,
-      email: widget.account.email,
-      password: widget.account.password,
-      description: _descController.text,
-      daysLeft: widget.account.daysLeft,
-      isReady: widget.account.isReady,
-      isFavorite: widget.account.isFavorite,
-      hasExpiration: widget.account.hasExpiration,
-      category: widget.account.category,
-      tags: _currentTags,
-      createdAt: widget.account.createdAt,
-      updatedAt: DateTime.now(),
-      expiresAt: widget.account.expiresAt,
-    );
-    context.read<AccountManager>().updateAccount(updated);
-    setState(() => _isEditing = false);
-  }
-
-  void _copyToClipboardSecure(String text, String label, {bool isSensitive = false}) {
-    if (text.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: text));
-    
-    String msg = '$label copiado!';
-    if (isSensitive) {
-      msg += ' (Auto-limpeza em 30s)';
-      Timer(const Duration(seconds: 30), () async {
-        final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-        if (clipboardData != null && clipboardData.text == text) {
-          Clipboard.setData(const ClipboardData(text: ''));
-        }
-      });
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg, style: const TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonCyan),
-    );
-  }
-
-  String _formatDuration(Duration d) {
-    final totalSeconds = d.inSeconds;
-    final days = totalSeconds ~/ 86400;
-    final hours = (totalSeconds % 86400) ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final seconds = totalSeconds % 60;
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${days}d ${two(hours)}:${two(minutes)}:${two(seconds)}';
-  }
-
-  Widget _credentialRow({required IconData icon, required String label, required String value, bool obscure = false, VoidCallback? trailingAction, IconData? trailingIcon}) {
-    final int obscuredLen = value.isEmpty ? 0 : (value.length.clamp(6, 24) as int);
-    final displayValue = obscure ? ('•' * obscuredLen) : value;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        children: [
-          Icon(icon, color: VaporwaveColors.neonPink, size: 18),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 11)),
-                const SizedBox(height: 2),
-                SelectableText(displayValue, style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 13, height: 1.4)),
-              ],
-            ),
-          ),
-          IconButton(onPressed: () => _copyToClipboardSecure(value, label, isSensitive: obscure), icon: Icon(Icons.copy, color: VaporwaveColors.neonCyan, size: 18)),
-          if (trailingAction != null && trailingIcon != null)
-            IconButton(onPressed: trailingAction, icon: Icon(trailingIcon, color: VaporwaveColors.neonYellow, size: 18)),
-        ],
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: background,
+      colorScheme: ColorScheme.dark(
+        primary: primary,
+        secondary: secondary,
+        surface: surface,
+        surfaceContainerHighest: surfaceVariant,
+        error: VaporwaveColors.neonRed,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface.withValues(alpha: 0.8),
+        foregroundColor: primary,
+        titleTextStyle: GoogleFonts.orbitron(fontSize: 24, fontWeight: FontWeight.bold, color: primary),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surface,
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide(color: secondary.withValues(alpha: 0.5))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide(color: primary, width: 2)),
       ),
     );
   }
-
-  Widget _responsiveBottomRow({required String timeText, required AccountManager manager}) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final counter = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.account.hasExpiration ? 'Renovar:' : 'Status:', style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12)),
-            const SizedBox(width: AppSpacing.xs),
-            
-            if (widget.account.hasExpiration) 
-              PopupMenuButton<int>(
-                icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
-                color: VaporwaveColors.surfaceVariant,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm), side: BorderSide(color: VaporwaveColors.neonPurple)),
-                onSelected: (int val) async {
-                  if (val == -1) {
-                    final DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now().add(const Duration(days: 30)),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.dark(
-                              primary: VaporwaveColors.neonCyan,
-                              onPrimary: VaporwaveColors.surface,
-                              surface: VaporwaveColors.surfaceVariant,
-                              onSurface: Colors.white,
-                            ),
-                            dialogBackgroundColor: VaporwaveColors.surfaceVariant,
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (picked != null) {
-                      final days = picked.difference(DateTime.now()).inDays + 1;
-                      manager.setDays(widget.account.id, days);
-                    }
-                  } else {
-                    manager.setDays(widget.account.id, val);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 7, child: Text('1 Semana', style: TextStyle(color: Colors.white))),
-                  const PopupMenuItem(value: 30, child: Text('1 Mês', style: TextStyle(color: Colors.white))),
-                  const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
-                  const PopupMenuItem(value: -1, child: Text('Customizado...', style: TextStyle(color: Colors.white))),
-                  const PopupMenuDivider(height: 1),
-                  PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
-                ],
-              ),
-            
-            const SizedBox(width: AppSpacing.xs),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 100),
-              child: Text(
-                widget.account.hasExpiration ? timeText : '
+}
