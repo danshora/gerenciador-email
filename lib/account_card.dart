@@ -20,10 +20,9 @@ class AccountCard extends StatefulWidget {
 class _AccountCardState extends State<AccountCard> {
   late TextEditingController _titleController;
   late TextEditingController _descController;
-  final TextEditingController _tagInputController = TextEditingController(); // Novo: Controle para digitar tags
+  final _tagInputController = TextEditingController();
   
-  late List<String> _currentTags; // Novo: Lista temporária de tags durante a edição
-  
+  late List<String> _currentTags;
   bool _isEditing = false;
   bool _showPassword = false;
   Timer? _ticker;
@@ -33,7 +32,7 @@ class _AccountCardState extends State<AccountCard> {
     super.initState();
     _titleController = TextEditingController(text: widget.account.title);
     _descController = TextEditingController(text: widget.account.description);
-    _currentTags = List.from(widget.account.tags); // Inicializa com as tags atuais da conta
+    _currentTags = List.from(widget.account.tags);
 
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -71,7 +70,7 @@ class _AccountCardState extends State<AccountCard> {
       isReady: widget.account.isReady,
       isFavorite: widget.account.isFavorite,
       category: widget.account.category,
-      tags: _currentTags, // Salva as novas tags editadas
+      tags: _currentTags,
       createdAt: widget.account.createdAt,
       updatedAt: DateTime.now(),
       expiresAt: widget.account.expiresAt,
@@ -84,19 +83,51 @@ class _AccountCardState extends State<AccountCard> {
 
   void _addTag() {
     final newTag = _tagInputController.text.trim();
-    if (newTag.isNotEmpty && _currentTags.length < 3 && !_currentTags.contains(newTag)) {
+    if (newTag.isEmpty) return;
+    
+    final manager = context.read<AccountManager>();
+    
+    if (_currentTags.contains(newTag)) return;
+
+    if (_currentTags.length < 3) {
+      bool foiSalvaGlobal = manager.addGlobalTag(newTag);
+      
       setState(() {
         _currentTags.add(newTag);
         _tagInputController.clear();
       });
-    } else if (_currentTags.length >= 3) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Limite de 3 tags atingido. (Premium permite até 10)', style: TextStyle(color: Colors.white)),
-          backgroundColor: VaporwaveColors.neonPink,
-        ),
-      );
+
+      if (!foiSalvaGlobal) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Tag inserida no card, mas limite de 3 tags na memória atingido!', style: TextStyle(color: Colors.white)),
+            backgroundColor: VaporwaveColors.neonYellow,
+          ),
+        );
+      }
+    } else {
+      _avisoLimite();
     }
+  }
+
+  void _useQuickTag(String tag) {
+    if (_currentTags.contains(tag)) return;
+    if (_currentTags.length < 3) {
+      setState(() {
+        _currentTags.add(tag);
+      });
+    } else {
+      _avisoLimite();
+    }
+  }
+
+  void _avisoLimite() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Limite de 3 tags por conta atingido. (Premium: até 10)', style: TextStyle(color: Colors.white)),
+        backgroundColor: VaporwaveColors.neonPink,
+      ),
+    );
   }
 
   void _copyField(String value, String label) {
@@ -170,10 +201,7 @@ class _AccountCardState extends State<AccountCard> {
     );
   }
 
-  Widget _responsiveBottomRow({
-    required String timeText,
-    required AccountManager manager,
-  }) {
+  Widget _responsiveBottomRow({required String timeText, required AccountManager manager}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 380;
@@ -186,7 +214,6 @@ class _AccountCardState extends State<AccountCard> {
               style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonPink, fontSize: 12),
             ),
             const SizedBox(width: AppSpacing.xs),
-            
             PopupMenuButton<int>(
               icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
               tooltip: 'Escolher duração',
@@ -210,7 +237,6 @@ class _AccountCardState extends State<AccountCard> {
                 PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
               ],
             ),
-            
             const SizedBox(width: AppSpacing.xs),
             ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 100),
@@ -240,7 +266,7 @@ class _AccountCardState extends State<AccountCard> {
                 icon: Icon(Icons.edit, color: VaporwaveColors.neonYellow),
                 onPressed: () {
                   setState(() {
-                    _currentTags = List.from(widget.account.tags); // Reseta as tags pra garantir
+                    _currentTags = List.from(widget.account.tags);
                     _isEditing = true;
                   });
                 },
@@ -283,13 +309,12 @@ class _AccountCardState extends State<AccountCard> {
 
   @override
   Widget build(BuildContext context) {
-    final manager = context.read<AccountManager>();
+    final manager = context.watch<AccountManager>();
     final isReady = widget.account.isReady;
     final statusColor = isReady ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed;
     final statusText = isReady ? 'Pronta para uso' : 'Descartada';
     final remaining = widget.account.remaining(DateTime.now());
     final timeText = remaining == Duration.zero ? 'Expirado' : _formatDuration(remaining);
-    
     final isFav = widget.account.isFavorite;
 
     return Container(
@@ -333,18 +358,11 @@ class _AccountCardState extends State<AccountCard> {
                     ? TextField(
                         controller: _titleController,
                         style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 18),
-                        decoration: const InputDecoration(
-                          hintText: 'Nome da Conta',
-                          isDense: true,
-                        ),
+                        decoration: const InputDecoration(hintText: 'Nome da Conta', isDense: true),
                       )
                     : Text(
                         widget.account.title,
-                        style: GoogleFonts.orbitron(
-                          color: VaporwaveColors.neonCyan,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
               ),
               InkWell(
@@ -356,36 +374,26 @@ class _AccountCardState extends State<AccountCard> {
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                     border: Border.all(color: statusColor),
                   ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(statusText, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          
           _isEditing
               ? TextField(
                   controller: _descController,
                   style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
-                    hintText: 'Descrição / Notas',
-                    isDense: true,
-                  ),
+                  decoration: const InputDecoration(hintText: 'Descrição / Notas', isDense: true),
                   maxLines: 2,
                 )
               : Text(
                   widget.account.description.isEmpty ? 'Sem descrição' : widget.account.description,
                   style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 14),
                 ),
-
           Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
-
           _credentialRow(icon: Icons.person, label: 'E-mail / Login', value: widget.account.email),
           
-          // --- ÁREA DAS TAGS (Abaixo do Email) ---
           if (!_isEditing && widget.account.tags.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
@@ -404,14 +412,34 @@ class _AccountCardState extends State<AccountCard> {
               ),
             ),
 
-          // --- MODO DE EDIÇÃO DAS TAGS ---
           if (_isEditing)
             Padding(
               padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Tags (${_currentTags.length}/3) - *Premium: Até 10*', 
+                  if (manager.savedTags.isNotEmpty) ...[
+                    Text('Sua Biblioteca Global (Clique para Equipar / Segure para Deletar):', 
+                      style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan, fontSize: 11)
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: manager.savedTags.map((st) => GestureDetector(
+                        onLongPress: () => manager.removeGlobalTag(st), 
+                        child: ActionChip(
+                          label: Text(st, style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          backgroundColor: VaporwaveColors.surface,
+                          side: BorderSide(color: VaporwaveColors.neonCyan.withValues(alpha: 0.4)),
+                          onPressed: () => _useQuickTag(st), 
+                        ),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  Text('Registrar Nova Tag (${_currentTags.length}/3):', 
                     style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonYellow, fontSize: 11)
                   ),
                   const SizedBox(height: 4),
@@ -424,7 +452,7 @@ class _AccountCardState extends State<AccountCard> {
                             controller: _tagInputController,
                             style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 12),
                             decoration: InputDecoration(
-                              hintText: 'Digite uma tag nova...',
+                              hintText: 'Escreva e clique em + ...',
                               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                               filled: true,
                               fillColor: VaporwaveColors.surface,
@@ -470,9 +498,7 @@ class _AccountCardState extends State<AccountCard> {
             trailingAction: () => setState(() => _showPassword = !_showPassword),
             trailingIcon: _showPassword ? Icons.visibility_off : Icons.visibility,
           ),
-
           Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
-
           _responsiveBottomRow(timeText: timeText, manager: manager),
         ],
       ),
