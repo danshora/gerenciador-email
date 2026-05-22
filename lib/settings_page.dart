@@ -22,7 +22,6 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  // --- POPUP DE SENHA (USADO PARA EXPORTAR E IMPORTAR) ---
   void _showPasswordDialog({
     required String title,
     required String buttonText,
@@ -94,7 +93,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _exportData(BuildContext context) {
-    // Primeiro pede a senha, depois gera o código
     _showPasswordDialog(
       title: 'SENHA DE EXPORTAÇÃO',
       buttonText: 'GERAR BACKUP',
@@ -166,17 +164,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _importData(BuildContext context) {
     final data = _importController.text.trim();
-    if (data.isEmpty) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Cole o código de backup primeiro.', style: TextStyle(color: Colors.white)),
-          backgroundColor: VaporwaveColors.neonPink,
-        ),
-      );
-      return;
-    }
+    if (data.isEmpty) return;
 
-    // Pede a senha para destrancar o código colado
     _showPasswordDialog(
       title: 'SENHA DE RESTAURAÇÃO',
       buttonText: 'DESTRANCAR',
@@ -195,7 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Acesso Negado: Senha incorreta ou código corrompido.', style: TextStyle(color: Colors.white)),
+              content: const Text('Acesso Negado: Senha incorreta ou arquivo corrompido.', style: TextStyle(color: Colors.white)),
               backgroundColor: VaporwaveColors.neonRed,
             ),
           );
@@ -247,6 +236,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final manager = context.watch<AccountManager>();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -262,23 +253,10 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              Icons.settings_system_daydream,
-              size: 80,
-              color: VaporwaveColors.neonPink,
-            ),
+            Icon(Icons.settings_system_daydream, size: 80, color: VaporwaveColors.neonPink),
             const SizedBox(height: AppSpacing.xl),
             
-            Text(
-              'INTERFACE',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.orbitron(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: VaporwaveColors.neonCyan,
-                shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)],
-              ),
-            ),
+            Text('INTERFACE', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 22, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
             const SizedBox(height: AppSpacing.md),
             _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', const Color(0xFFFF00FF), const Color(0xFF00FFFF)),
             const SizedBox(height: AppSpacing.sm),
@@ -290,63 +268,19 @@ class _SettingsPageState extends State<SettingsPage> {
             Divider(color: VaporwaveColors.neonPurple, thickness: 2),
             const SizedBox(height: AppSpacing.xxl),
 
-            Text(
-              'SISTEMA DE BACKUP',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.orbitron(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: VaporwaveColors.neonCyan,
-                shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)],
-              ),
-            ),
+            Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 22, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'Exporte suas contas com criptografia militar AES-256.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: AppSpacing.lg),
             Container(
-              decoration: BoxDecoration(
-                boxShadow: neonGlowPink,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
+              decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
               child: ElevatedButton.icon(
                 onPressed: () => _exportData(context),
                 icon: const Icon(Icons.lock_outline),
-                label: Text(
-                  'EXPORTAR COM SENHA',
-                  style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                ),
+                label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
               ),
             ),
             
-            const SizedBox(height: AppSpacing.xxl),
-            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
-            const SizedBox(height: AppSpacing.xxl),
-
-            Text(
-              'RESTAURAR SISTEMA',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.orbitron(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: VaporwaveColors.neonYellow,
-                shadows: [Shadow(color: VaporwaveColors.neonYellow, blurRadius: 10)],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Cole o código do cofre e insira a senha para destrancar.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            
+            const SizedBox(height: AppSpacing.xl),
             TextField(
               controller: _importController,
               maxLines: 4,
@@ -356,36 +290,43 @@ class _SettingsPageState extends State<SettingsPage> {
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                 filled: true,
                 fillColor: VaporwaveColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(color: VaporwaveColors.neonPurple),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.sm),
             ElevatedButton.icon(
               onPressed: () => _importData(context),
               icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
-              label: Text(
-                'DESTRANCAR E IMPORTAR',
-                style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant),
-              ),
+              label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: VaporwaveColors.neonYellow,
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
               ),
             ),
+
+            const SizedBox(height: AppSpacing.xxl),
+            Divider(color: VaporwaveColors.neonPurple, thickness: 2),
+            const SizedBox(height: AppSpacing.xl),
+
+            // --- BOTÃO DE DESENVOLVEDOR ---
+            Text('FERRAMENTAS DE DESENVOLVEDOR', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 14, color: VaporwaveColors.neonPink)),
+            const SizedBox(height: AppSpacing.md),
+            SwitchListTile(
+              title: Text('Forçar Status VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white)),
+              subtitle: Text('Permite criar até 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              value: manager.isPremium,
+              activeColor: VaporwaveColors.neonYellow,
+              onChanged: (bool value) {
+                manager.togglePremium();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(value ? 'Plano Premium Ativado!' : 'Plano Free Ativado.', style: const TextStyle(color: Colors.white)),
+                    backgroundColor: value ? VaporwaveColors.neonYellow : VaporwaveColors.surfaceVariant,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.xl),
           ],
         ),
       ),
