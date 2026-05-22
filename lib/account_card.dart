@@ -20,6 +20,10 @@ class AccountCard extends StatefulWidget {
 class _AccountCardState extends State<AccountCard> {
   late TextEditingController _titleController;
   late TextEditingController _descController;
+  final TextEditingController _tagInputController = TextEditingController(); // Novo: Controle para digitar tags
+  
+  late List<String> _currentTags; // Novo: Lista temporária de tags durante a edição
+  
   bool _isEditing = false;
   bool _showPassword = false;
   Timer? _ticker;
@@ -29,6 +33,7 @@ class _AccountCardState extends State<AccountCard> {
     super.initState();
     _titleController = TextEditingController(text: widget.account.title);
     _descController = TextEditingController(text: widget.account.description);
+    _currentTags = List.from(widget.account.tags); // Inicializa com as tags atuais da conta
 
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -42,6 +47,7 @@ class _AccountCardState extends State<AccountCard> {
     if (oldWidget.account.id != widget.account.id) {
       _titleController.text = widget.account.title;
       _descController.text = widget.account.description;
+      _currentTags = List.from(widget.account.tags);
     }
   }
 
@@ -50,6 +56,7 @@ class _AccountCardState extends State<AccountCard> {
     _ticker?.cancel();
     _titleController.dispose();
     _descController.dispose();
+    _tagInputController.dispose();
     super.dispose();
   }
 
@@ -64,7 +71,7 @@ class _AccountCardState extends State<AccountCard> {
       isReady: widget.account.isReady,
       isFavorite: widget.account.isFavorite,
       category: widget.account.category,
-      tags: widget.account.tags,
+      tags: _currentTags, // Salva as novas tags editadas
       createdAt: widget.account.createdAt,
       updatedAt: DateTime.now(),
       expiresAt: widget.account.expiresAt,
@@ -73,6 +80,23 @@ class _AccountCardState extends State<AccountCard> {
     setState(() {
       _isEditing = false;
     });
+  }
+
+  void _addTag() {
+    final newTag = _tagInputController.text.trim();
+    if (newTag.isNotEmpty && _currentTags.length < 3 && !_currentTags.contains(newTag)) {
+      setState(() {
+        _currentTags.add(newTag);
+        _tagInputController.clear();
+      });
+    } else if (_currentTags.length >= 3) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Limite de 3 tags atingido. (Premium permite até 10)', style: TextStyle(color: Colors.white)),
+          backgroundColor: VaporwaveColors.neonPink,
+        ),
+      );
+    }
   }
 
   void _copyField(String value, String label) {
@@ -214,7 +238,12 @@ class _AccountCardState extends State<AccountCard> {
             else
               IconButton(
                 icon: Icon(Icons.edit, color: VaporwaveColors.neonYellow),
-                onPressed: () => setState(() => _isEditing = true),
+                onPressed: () {
+                  setState(() {
+                    _currentTags = List.from(widget.account.tags); // Reseta as tags pra garantir
+                    _isEditing = true;
+                  });
+                },
                 tooltip: 'Editar',
               ),
             IconButton(
@@ -351,27 +380,88 @@ class _AccountCardState extends State<AccountCard> {
                   widget.account.description.isEmpty ? 'Sem descrição' : widget.account.description,
                   style: GoogleFonts.chakraPetch(color: Colors.white70, fontSize: 14),
                 ),
-          
-          const SizedBox(height: AppSpacing.sm),
-          
-          if (widget.account.tags.isNotEmpty && !_isEditing)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: widget.account.tags.map((t) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: VaporwaveColors.surface,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: VaporwaveColors.neonPurple, width: 1),
-                ),
-                child: Text(t, style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan, fontSize: 11)),
-              )).toList(),
-            ),
 
           Divider(color: VaporwaveColors.neonPurple, height: AppSpacing.lg),
 
           _credentialRow(icon: Icons.person, label: 'E-mail / Login', value: widget.account.email),
+          
+          // --- ÁREA DAS TAGS (Abaixo do Email) ---
+          if (!_isEditing && widget.account.tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: widget.account.tags.map((t) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: VaporwaveColors.surface,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: VaporwaveColors.neonPurple, width: 1),
+                  ),
+                  child: Text(t, style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonCyan, fontSize: 11)),
+                )).toList(),
+              ),
+            ),
+
+          // --- MODO DE EDIÇÃO DAS TAGS ---
+          if (_isEditing)
+            Padding(
+              padding: const EdgeInsets.only(left: 30.0, bottom: AppSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tags (${_currentTags.length}/3) - *Premium: Até 10*', 
+                    style: GoogleFonts.chakraPetch(color: VaporwaveColors.neonYellow, fontSize: 11)
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 35,
+                          child: TextField(
+                            controller: _tagInputController,
+                            style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 12),
+                            decoration: InputDecoration(
+                              hintText: 'Digite uma tag nova...',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                              filled: true,
+                              fillColor: VaporwaveColors.surface,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
+                            ),
+                            onSubmitted: (_) => _addTag(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.add_circle, color: VaporwaveColors.neonCyan),
+                        onPressed: _addTag,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 35),
+                      )
+                    ],
+                  ),
+                  if (_currentTags.isNotEmpty) const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _currentTags.map((t) => InputChip(
+                      label: Text(t, style: GoogleFonts.chakraPetch(color: Colors.white, fontSize: 11)),
+                      backgroundColor: VaporwaveColors.surfaceVariant,
+                      deleteIconColor: VaporwaveColors.neonRed,
+                      side: BorderSide(color: VaporwaveColors.neonPink),
+                      onDeleted: () {
+                        setState(() {
+                          _currentTags.remove(t);
+                        });
+                      },
+                    )).toList(),
+                  ),
+                ],
+              ),
+            ),
+          
           _credentialRow(
             icon: Icons.lock,
             label: 'Senha',
