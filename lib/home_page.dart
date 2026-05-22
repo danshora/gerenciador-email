@@ -90,8 +90,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       updatedAt: now,
       expiresAt: now.add(const Duration(days: 30)),
       isReady: true,
-      category: 'Geral', // Categoria padrão
-      tags: [], // Tags começam vazias agora!
+      category: 'Geral',
+      tags: [], 
     );
 
     context.read<AccountManager>().addAccount(account);
