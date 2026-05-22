@@ -37,17 +37,11 @@ class _SettingsPageState extends State<SettingsPage> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           side: BorderSide(color: VaporwaveColors.neonYellow, width: 2),
         ),
-        title: Text(
-          title,
-          style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow),
-        ),
+        title: Text(title, style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Digite uma senha para trancar/destrancar este backup:',
-              style: GoogleFonts.chakraPetch(color: Colors.white70),
-            ),
+            Text('Digite uma senha para trancar/destrancar este backup:', style: GoogleFonts.chakraPetch(color: Colors.white70)),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: pwController,
@@ -59,23 +53,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 filled: true,
                 fillColor: VaporwaveColors.surface,
                 prefixIcon: Icon(Icons.key, color: VaporwaveColors.neonYellow),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  borderSide: BorderSide(color: VaporwaveColors.neonPurple),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  borderSide: BorderSide(color: VaporwaveColors.neonYellow),
-                ),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide(color: VaporwaveColors.neonPurple)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide(color: VaporwaveColors.neonYellow)),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow),
             onPressed: () {
@@ -98,62 +83,34 @@ class _SettingsPageState extends State<SettingsPage> {
       buttonText: 'GERAR BACKUP',
       onSubmit: (password) {
         final data = context.read<AccountManager>().exportData(password);
-        
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: VaporwaveColors.surfaceVariant,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: VaporwaveColors.neonPink, width: 2),
-            ),
-            title: Text(
-              'COFRE TRANCADO',
-              style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide(color: VaporwaveColors.neonPink, width: 2)),
+            title: Text('COFRE TRANCADO', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Este código só pode ser aberto com a senha que você acabou de criar:',
-                  style: GoogleFonts.chakraPetch(color: Colors.white),
-                ),
+                Text('Este código só pode ser aberto com a senha que você acabou de criar:', style: GoogleFonts.chakraPetch(color: Colors.white)),
                 const SizedBox(height: AppSpacing.md),
                 Container(
                   height: 150,
                   padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: VaporwaveColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(color: VaporwaveColors.neonPurple),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      data,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
+                  decoration: BoxDecoration(color: VaporwaveColors.surface, borderRadius: BorderRadius.circular(AppRadius.sm), border: Border.all(color: VaporwaveColors.neonPurple)),
+                  child: SingleChildScrollView(child: Text(data, style: const TextStyle(color: Colors.white70, fontSize: 12))),
                 ),
               ],
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan)),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context), child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan))),
               ElevatedButton.icon(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: data));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Dados copiados para a área de transferência!', style: TextStyle(color: Colors.white)),
-                      backgroundColor: VaporwaveColors.neonGreen,
-                    ),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Dados copiados!'), backgroundColor: VaporwaveColors.neonGreen));
                 },
-                icon: const Icon(Icons.copy),
-                label: const Text('COPIAR'),
+                icon: const Icon(Icons.copy), label: const Text('COPIAR'),
               ),
             ],
           ),
@@ -165,29 +122,17 @@ class _SettingsPageState extends State<SettingsPage> {
   void _importData(BuildContext context) {
     final data = _importController.text.trim();
     if (data.isEmpty) return;
-
     _showPasswordDialog(
       title: 'SENHA DE RESTAURAÇÃO',
       buttonText: 'DESTRANCAR',
       onSubmit: (password) {
         final success = context.read<AccountManager>().importData(data, password);
-        
         if (success) {
           _importController.clear();
           FocusScope.of(context).unfocus();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Acesso Autorizado. Backup restaurado!', style: TextStyle(color: Colors.white)),
-              backgroundColor: VaporwaveColors.neonGreen,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Backup restaurado!'), backgroundColor: VaporwaveColors.neonGreen));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Acesso Negado: Senha incorreta ou arquivo corrompido.', style: TextStyle(color: Colors.white)),
-              backgroundColor: VaporwaveColors.neonRed,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Senha incorreta ou erro.'), backgroundColor: VaporwaveColors.neonRed));
         }
       }
     );
@@ -204,13 +149,8 @@ class _SettingsPageState extends State<SettingsPage> {
         decoration: BoxDecoration(
           color: VaporwaveColors.surfaceVariant,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: isSelected ? primary : Colors.transparent,
-            width: 2,
-          ),
-          boxShadow: isSelected ? [
-            BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)
-          ] : [],
+          border: Border.all(color: isSelected ? primary : Colors.transparent, width: 2),
+          boxShadow: isSelected ? [BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)] : [],
         ),
         child: Row(
           children: [
@@ -218,15 +158,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(width: 8),
             Container(width: 20, height: 20, decoration: BoxDecoration(color: secondary, shape: BoxShape.circle)),
             const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: GoogleFonts.orbitron(
-                  color: isSelected ? Colors.white : Colors.white70,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
+            Expanded(child: Text(title, style: GoogleFonts.orbitron(color: isSelected ? Colors.white : Colors.white70, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))),
             if (isSelected) Icon(Icons.check_circle, color: primary),
           ],
         ),
@@ -242,13 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            'SETUP',
-            style: GoogleFonts.orbitron(
-              color: VaporwaveColors.neonCyan,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          title: Text('SETUP', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
           bottom: TabBar(
             indicatorColor: VaporwaveColors.neonPink,
             labelColor: VaporwaveColors.neonPink,
@@ -269,13 +195,19 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
+                  Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
                   const SizedBox(height: AppSpacing.md),
-                  _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', const Color(0xFFFF00FF), const Color(0xFF00FFFF)),
+                  _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
                   const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', const Color(0xFF00FFFF), const Color(0xFFFCEE09)),
+                  _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
                   const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'Outrun Laranja', 'outrun', const Color(0xFFFF6600), const Color(0xFFE0AAFF)),
+                  _buildThemeButton(context, 'Outrun Laranja', 'outrun', VaporwaveColors.neonRed, VaporwaveColors.neonPurple),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildThemeButton(context, 'AQUA', 'aqua', VaporwaveColors.aquaPrimary, VaporwaveColors.aquaSecondary),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary),
                 ],
               ),
             ),
@@ -286,7 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
+                  Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
                   const SizedBox(height: AppSpacing.md),
                   Container(
                     decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -297,62 +229,39 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
                     ),
                   ),
-                  
                   const SizedBox(height: AppSpacing.xl),
                   TextField(
                     controller: _importController,
                     maxLines: 4,
                     style: const TextStyle(color: Colors.white, fontSize: 12),
-                    decoration: InputDecoration(
-                      hintText: 'Cole o código encriptado aqui...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                      filled: true,
-                      fillColor: VaporwaveColors.surfaceVariant,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
-                    ),
+                    decoration: InputDecoration(hintText: 'Cole o código encriptado aqui...', filled: true, fillColor: VaporwaveColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none)),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   ElevatedButton.icon(
                     onPressed: () => _importData(context),
                     icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
                     label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: VaporwaveColors.neonYellow,
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
                   ),
                 ],
               ),
             ),
 
-            // --- ABA 3: SISTEMA (DEV E PREMIUM) ---
+            // --- ABA 3: SISTEMA (DEV) ---
             SingleChildScrollView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('FERRAMENTAS GERAIS', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan, shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 10)])),
-                  const SizedBox(height: AppSpacing.md),
-                  
                   Container(
-                    decoration: BoxDecoration(
-                      color: VaporwaveColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: VaporwaveColors.neonPurple),
-                    ),
+                    decoration: BoxDecoration(color: VaporwaveColors.surfaceVariant, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: VaporwaveColors.neonPurple)),
                     child: SwitchListTile(
-                      title: Text('Forçar Status VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text('Ativa o limite de 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: Text('Libera 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
                       value: manager.isPremium,
                       activeColor: VaporwaveColors.neonYellow,
                       onChanged: (bool value) {
                         manager.togglePremium();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(value ? 'Plano Premium Ativado!' : 'Plano Free Ativado.', style: const TextStyle(color: Colors.white)),
-                            backgroundColor: value ? VaporwaveColors.neonYellow : VaporwaveColors.surfaceVariant,
-                          ),
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
                       },
                     ),
                   ),
