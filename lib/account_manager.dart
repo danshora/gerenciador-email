@@ -7,10 +7,12 @@ import 'account.dart';
 
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
+  static const String _savedTagsKey = 'vaporwave_global_tags'; 
   
-  final _iv = enc.IV.fromLength(16); // Vetor de inicialização padrão
+  final _iv = enc.IV.fromLength(16);
   
   List<Account> _accounts = [];
+  List<String> _savedTags = []; 
   bool _isLoading = true;
 
   List<Account> get accounts {
@@ -19,15 +21,14 @@ class AccountManager extends ChangeNotifier {
     return [...favs, ...nonFavs];
   }
   
+  List<String> get savedTags => _savedTags;
   bool get isLoading => _isLoading;
 
   AccountManager() {
     _loadAccounts();
   }
 
-  // GERA UMA CHAVE ÚNICA BASEADA NA SENHA DO USUÁRIO
   enc.Key _getKeyFromPassword(String password) {
-    // Mistura a senha com um sal para garantir exatos 32 caracteres (exigência do AES-256)
     final salted = password + 'VaporManagerCyberVaultSecretK3y!';
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
@@ -35,15 +36,21 @@ class AccountManager extends ChangeNotifier {
   Future<void> _loadAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? accountsJson = prefs.getString(_storageKey);
       
+      final String? accountsJson = prefs.getString(_storageKey);
       if (accountsJson != null) {
         final List<dynamic> decodedList = json.decode(accountsJson);
         _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
+
+      final String? tagsJson = prefs.getString(_savedTagsKey);
+      if (tagsJson != null) {
+        _savedTags = List<String>.from(json.decode(tagsJson));
+      }
     } catch (e) {
-      debugPrint('Erro ao carregar as contas do Neon Drive: $e');
+      debugPrint('Erro ao carregar dados do Neon Drive: $e');
       _accounts = [];
+      _savedTags = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -58,6 +65,36 @@ class AccountManager extends ChangeNotifier {
     } catch (e) {
       debugPrint('Erro ao salvar no Neon Drive: $e');
     }
+  }
+
+  Future<void> _saveGlobalTags() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_savedTagsKey, json.encode(_savedTags));
+    } catch (e) {
+      debugPrint('Erro ao salvar tags globais: $e');
+    }
+  }
+
+  bool addGlobalTag(String tag) {
+    final cleanTag = tag.trim();
+    if (cleanTag.isEmpty) return false;
+    if (_savedTags.contains(cleanTag)) return true; 
+    
+    if (_savedTags.length >= 3) {
+      return false; 
+    }
+    
+    _savedTags.add(cleanTag);
+    _saveGlobalTags();
+    notifyListeners();
+    return true;
+  }
+
+  void removeGlobalTag(String tag) {
+    _savedTags.remove(tag);
+    _saveGlobalTags();
+    notifyListeners();
   }
 
   void addAccount(Account account) {
@@ -148,18 +185,11 @@ class AccountManager extends ChangeNotifier {
     final lowerQuery = query.toLowerCase();
     return list.where((a) {
       return a.title.toLowerCase().contains(lowerQuery) ||
-             a.description.toLowerCase().contains(lowerQuery) ||
-             a.tags.any((tag) => tag.toLowerCase().contains(lowerQuery));
+             a.email.toLowerCase().contains(lowerQuery) ||
+             a.description.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 
-  List<Account> filterByCategory(String category) {
-    final list = accounts;
-    if (category == 'Todas') return list;
-    return list.where((a) => a.category == category || a.tags.contains(category)).toList();
-  }
-
-  // EXPORTAÇÃO EXIGE SENHA AGORA
   String exportData(String password) {
     try {
       final jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
@@ -172,18 +202,14 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // IMPORTAÇÃO EXIGE A MESMA SENHA
   bool importData(String inputData, String password) {
     try {
       String jsonString;
-      
-      // Tenta destrancar usando a senha fornecida
       try {
         final key = _getKeyFromPassword(password);
         final encrypter = enc.Encrypter(enc.AES(key));
         jsonString = encrypter.decrypt64(inputData, iv: _iv);
       } catch (_) {
-        // Se a senha falhar, tenta ver se é um backup muito antigo (texto puro)
         jsonString = inputData;
       }
 
@@ -202,8 +228,7 @@ class AccountManager extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint('Falha ao restaurar dados: $e');
-      return false; // Retorna falso se a senha estiver errada ou o arquivo corrompido
+      return false;
     }
   }
 }
