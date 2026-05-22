@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSpacing {
@@ -18,19 +17,14 @@ class AppRadius {
 }
 
 class VaporwaveColors {
-  // As cores agora não são "const", elas podem mudar!
   static Color background = const Color(0xFF0D0221);
   static Color surface = const Color(0xFF1B0330);
   static Color surfaceVariant = const Color(0xFF2E094F);
-
   static Color neonPink = const Color(0xFFFF00FF);
   static Color neonCyan = const Color(0xFF00FFFF);
   static Color neonPurple = const Color(0xFF9D00FF);
-  static Color neonBlue = const Color(0xFF0033FF);
   static Color neonYellow = const Color(0xFFFFCC00);
-
-  static Color neonGreen = const Color(0xFF39FF14);
-  static Color neonRed = const Color(0xFFFF003C);
+  static Color neonRed = const Color(0xFFFF073A);
 
   static void loadVaporwave() {
     background = const Color(0xFF0D0221);
@@ -45,21 +39,49 @@ class VaporwaveColors {
     background = const Color(0xFF090909);
     surface = const Color(0xFF1C1C1C);
     surfaceVariant = const Color(0xFF2D2D2D);
-    neonPink = const Color(0xFF00FFFF); // Troca Rosa por Ciano
-    neonCyan = const Color(0xFFFCEE09); // Troca Ciano por Amarelo
-    neonPurple = const Color(0xFFFF003C); // Acentos em Vermelho
+    neonPink = const Color(0xFF00FFFF);
+    neonCyan = const Color(0xFFFCEE09);
+    neonPurple = const Color(0xFFFF003C);
   }
 
   static void loadOutrun() {
     background = const Color(0xFF10002B);
     surface = const Color(0xFF240046);
     surfaceVariant = const Color(0xFF3C096C);
-    neonPink = const Color(0xFFFF6600); // Laranja Neon
-    neonCyan = const Color(0xFFE0AAFF); // Roxo suave
-    neonPurple = const Color(0xFF5A189A); // Roxo profundo
+    neonPink = const Color(0xFFFF6600);
+    neonCyan = const Color(0xFFE0AAFF);
+    neonPurple = const Color(0xFF5A189A);
+  }
+
+  static void loadAqua() {
+    background = const Color(0xFF001F3F);
+    surface = const Color(0xFF003366);
+    surfaceVariant = const Color(0xFF004A99);
+    neonPink = const Color(0xFF00D2FF);
+    neonCyan = const Color(0xFF7FFFD4);
+    neonPurple = const Color(0xFF00BFFF);
+  }
+
+  static void loadMatrix() {
+    background = const Color(0xFF000000);
+    surface = const Color(0xFF0D140D);
+    surfaceVariant = const Color(0xFF1B261B);
+    neonPink = const Color(0xFF00FF41);
+    neonCyan = const Color(0xFF39FF14);
+    neonPurple = const Color(0xFF008F11);
+  }
+
+  static void loadDeepBlue() {
+    background = const Color(0xFF000510);
+    surface = const Color(0xFF001020);
+    surfaceVariant = const Color(0xFF002040);
+    neonPink = const Color(0xFF0055FF);
+    neonCyan = const Color(0xFF00C3FF);
+    neonPurple = const Color(0xFF001144);
   }
 }
 
+// Extensões para facilitar o brilho dinâmico
 List<BoxShadow> get neonGlowPink => [
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
@@ -70,58 +92,7 @@ List<BoxShadow> get neonGlowCyan => [
       BoxShadow(color: VaporwaveColors.neonCyan.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
     ];
 
-ThemeData get darkTheme => ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: VaporwaveColors.background,
-      colorScheme: ColorScheme.dark(
-        primary: VaporwaveColors.neonPink,
-        onPrimary: Colors.white,
-        secondary: VaporwaveColors.neonCyan,
-        onSecondary: Colors.black,
-        tertiary: VaporwaveColors.neonYellow,
-        surface: VaporwaveColors.surface,
-        onSurface: Colors.white,
-        error: VaporwaveColors.neonRed,
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: VaporwaveColors.surface.withValues(alpha: 0.8),
-        foregroundColor: VaporwaveColors.neonCyan,
-        elevation: 0,
-        centerTitle: true,
-        titleTextStyle: GoogleFonts.orbitron(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: VaporwaveColors.neonCyan,
-          shadows: [Shadow(color: VaporwaveColors.neonCyan, blurRadius: 8)],
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: VaporwaveColors.surface,
-        labelStyle: TextStyle(color: VaporwaveColors.neonCyan),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: VaporwaveColors.neonPurple, width: 2),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: VaporwaveColors.neonPink, width: 2),
-        ),
-        prefixIconColor: VaporwaveColors.neonCyan,
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: VaporwaveColors.surface,
-        selectedItemColor: VaporwaveColors.neonPink,
-        unselectedItemColor: VaporwaveColors.neonCyan,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-      ),
-    );
-
-// O GERENCIADOR DE TEMAS
-class ThemeProvider extends ChangeNotifier {
+class ThemeProvider with ChangeNotifier {
   String _currentTheme = 'vaporwave';
   String get currentTheme => _currentTheme;
 
@@ -145,12 +116,10 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   void _applyTheme(String theme) {
-    if (theme == 'cyberpunk') {
-      VaporwaveColors.loadCyberpunk();
-    } else if (theme == 'outrun') {
-      VaporwaveColors.loadOutrun();
-    } else {
-      VaporwaveColors.loadVaporwave();
-    }
-  }
-}
+    switch (theme) {
+      case 'cyberpunk': VaporwaveColors.loadCyberpunk(); break;
+      case 'outrun': VaporwaveColors.loadOutrun(); break;
+      case 'aqua': VaporwaveColors.loadAqua(); break;
+      case 'matrix': VaporwaveColors.loadMatrix(); break;
+      case 'deepblue': VaporwaveColors.loadDeepBlue(); break;
+      default: Vapor
