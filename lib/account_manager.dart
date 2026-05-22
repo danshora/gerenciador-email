@@ -2,20 +2,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as enc;
-
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
   static const String _savedTagsKey = 'vaporwave_global_tags'; 
-  static const String _premiumKey = 'vaporwave_is_premium'; // Controle Premium
+  static const String _premiumKey = 'vaporwave_is_premium'; 
   
   final _iv = enc.IV.fromLength(16);
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
   bool _isLoading = true;
-  bool _isPremium = false; // MODO PAGANTE
+  bool _isPremium = false; 
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -39,7 +38,6 @@ class AccountManager extends ChangeNotifier {
   Future<void> _loadAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
       _isPremium = prefs.getBool(_premiumKey) ?? false;
 
       final String? accountsJson = prefs.getString(_storageKey);
@@ -62,41 +60,49 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
+  // LÓGICA DE DOWNGRADE IMPLEMENTADA AQUI
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, _isPremium);
+
+    if (!_isPremium && _savedTags.length > 3) {
+      // Pega as tags que serão deletadas
+      final tagsToRemove = _savedTags.sublist(3);
+      
+      // Mantém só as 3 mais antigas na biblioteca global
+      _savedTags = _savedTags.sublist(0, 3);
+      await _saveGlobalTags();
+
+      // Limpa as tags deletadas de todas as contas do cofre
+      for (var i = 0; i < _accounts.length; i++) {
+        final newTags = _accounts[i].tags.where((t) => !tagsToRemove.contains(t)).toList();
+        if (newTags.length != _accounts[i].tags.length) {
+          _accounts[i] = _accounts[i].copyWith(tags: newTags);
+        }
+      }
+      await _saveAccounts();
+    }
     notifyListeners();
   }
 
   Future<void> _saveAccounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String encodedList = json.encode(_accounts.map((a) => a.toMap()).toList());
-      await prefs.setString(_storageKey, encodedList);
-    } catch (e) {
-      debugPrint('Erro: $e');
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_storageKey, json.encode(_accounts.map((a) => a.toMap()).toList()));
   }
 
   Future<void> _saveGlobalTags() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_savedTagsKey, json.encode(_savedTags));
-    } catch (e) {
-      debugPrint('Erro: $e');
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_savedTagsKey, json.encode(_savedTags));
   }
 
   bool addGlobalTag(String tag) {
-    final cleanTag = tag.trim().toUpperCase(); // Salva em maíusculo pra ficar bonito
+    final cleanTag = tag.trim().toUpperCase();
     if (cleanTag.isEmpty) return false;
     if (_savedTags.contains(cleanTag)) return true; 
     
     int limite = _isPremium ? 10 : 3;
-    if (_savedTags.length >= limite) {
-      return false; 
-    }
+    if (_savedTags.length >= limite) return false; 
     
     _savedTags.add(cleanTag);
     _saveGlobalTags();
@@ -106,7 +112,6 @@ class AccountManager extends ChangeNotifier {
 
   void removeGlobalTag(String tag) {
     _savedTags.remove(tag);
-    // Também limpa essa tag de todas as contas para não quebrar a sincronia
     for (var i = 0; i < _accounts.length; i++) {
       if (_accounts[i].tags.contains(tag)) {
         final newTags = List<String>.from(_accounts[i].tags)..remove(tag);
@@ -163,40 +168,9 @@ class AccountManager extends ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == id);
     if (index != -1) {
       final acc = _accounts[index];
-      _accounts[index] = acc.copyWith(expiresAt: DateTime.now().add(Duration(days: days)));
+      _accounts[index] = acc.copyWith(expiresAt: DateTime.now().add(Duration(days: days)), hasExpiration: true);
       _saveAccounts();
       notifyListeners();
-    }
-  }
-
-  void incrementDays(String id) {
-    final index = _accounts.indexWhere((a) => a.id == id);
-    if (index != -1) {
-      final acc = _accounts[index];
-      if (acc.expiresAt != null) {
-        _accounts[index] = acc.copyWith(expiresAt: acc.expiresAt!.add(const Duration(days: 1)));
-        _saveAccounts();
-        notifyListeners();
-      }
-    }
-  }
-
-  void decrementDays(String id) {
-    final index = _accounts.indexWhere((a) => a.id == id);
-    if (index != -1) {
-      final acc = _accounts[index];
-      if (acc.expiresAt != null) {
-        final newDate = acc.expiresAt!.subtract(const Duration(days: 1));
-        if (newDate.isAfter(DateTime.now())) {
-          _accounts[index] = acc.copyWith(expiresAt: newDate);
-          _saveAccounts();
-          notifyListeners();
-        } else {
-          _accounts[index] = acc.copyWith(expiresAt: DateTime.now());
-          _saveAccounts();
-          notifyListeners();
-        }
-      }
     }
   }
 
@@ -216,8 +190,7 @@ class AccountManager extends ChangeNotifier {
       final jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
       final key = _getKeyFromPassword(password);
       final encrypter = enc.Encrypter(enc.AES(key));
-      final encrypted = encrypter.encrypt(jsonString, iv: _iv);
-      return encrypted.base64;
+      return encrypter.encrypt(jsonString, iv: _iv).base64;
     } catch (e) {
       return 'Erro ao exportar os dados do sistema.';
     }
@@ -233,18 +206,11 @@ class AccountManager extends ChangeNotifier {
       } catch (_) {
         jsonString = inputData;
       }
-
       final List<dynamic> decodedList = json.decode(jsonString);
-      final List<Account> importedAccounts = decodedList
-          .map((item) => Account.fromMap(item as Map<String, dynamic>))
-          .toList();
-      
+      final List<Account> importedAccounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       for (var newAcc in importedAccounts) {
-        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) {
-          _accounts.add(newAcc);
-        }
+        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) _accounts.add(newAcc);
       }
-      
       _saveAccounts();
       notifyListeners();
       return true;
