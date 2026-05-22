@@ -33,7 +33,7 @@ class Account {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now(),
         category = category.isEmpty ? 'Outros' : category,
-        tags = (tags == null || tags.isEmpty) ? [category.isEmpty ? 'Outros' : category] : List<String>.from(tags),
+        tags = tags != null ? List<String>.from(tags) : [], // Tags agora começam 100% vazias!
         id = id ?? const Uuid().v4();
 
   Duration remaining(DateTime now) {
@@ -120,7 +120,7 @@ class Account {
       if (raw is String && raw.trim().isNotEmpty) {
         return [raw.trim()];
       }
-      return [legacyCategory];
+      return []; // Limpando legado
     }
 
     final tags = parseTags(map['tags']);
@@ -149,6 +149,5 @@ class Account {
   }
 
   String toJson() => json.encode(toMap());
-
   factory Account.fromJson(String source) => Account.fromMap(json.decode(source));
 }
