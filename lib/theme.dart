@@ -20,11 +20,23 @@ class VaporwaveColors {
   static Color background = const Color(0xFF0D0221);
   static Color surface = const Color(0xFF1B0330);
   static Color surfaceVariant = const Color(0xFF2E094F);
+  
   static Color neonPink = const Color(0xFFFF00FF);
   static Color neonCyan = const Color(0xFF00FFFF);
   static Color neonPurple = const Color(0xFF9D00FF);
   static Color neonYellow = const Color(0xFFFFCC00);
+  
+  // Variáveis que estavam a faltar:
+  static Color neonGreen = const Color(0xFF39FF14);
   static Color neonRed = const Color(0xFFFF073A);
+
+  // Novos temas (cores de apoio)
+  static const Color aquaPrimary = Color(0xFF00D2FF);
+  static const Color aquaSecondary = Color(0xFF3A7BD5);
+  static const Color matrixPrimary = Color(0xFF00FF41);
+  static const Color matrixSecondary = Color(0xFF003B00);
+  static const Color deepBluePrimary = Color(0xFF0055FF);
+  static const Color deepBlueSecondary = Color(0xFF001144);
 
   static void loadVaporwave() {
     background = const Color(0xFF0D0221);
@@ -33,6 +45,8 @@ class VaporwaveColors {
     neonPink = const Color(0xFFFF00FF);
     neonCyan = const Color(0xFF00FFFF);
     neonPurple = const Color(0xFF9D00FF);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
   }
 
   static void loadCyberpunk() {
@@ -42,6 +56,8 @@ class VaporwaveColors {
     neonPink = const Color(0xFF00FFFF);
     neonCyan = const Color(0xFFFCEE09);
     neonPurple = const Color(0xFFFF003C);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
   }
 
   static void loadOutrun() {
@@ -51,6 +67,8 @@ class VaporwaveColors {
     neonPink = const Color(0xFFFF6600);
     neonCyan = const Color(0xFFE0AAFF);
     neonPurple = const Color(0xFF5A189A);
+    neonGreen = const Color(0xFF39FF14);
+    neonRed = const Color(0xFFFF073A);
   }
 
   static void loadAqua() {
@@ -81,7 +99,6 @@ class VaporwaveColors {
   }
 }
 
-// Extensões para facilitar o brilho dinâmico
 List<BoxShadow> get neonGlowPink => [
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.6), blurRadius: 12, spreadRadius: 2),
       BoxShadow(color: VaporwaveColors.neonPink.withValues(alpha: 0.2), blurRadius: 24, spreadRadius: 4),
@@ -122,4 +139,7 @@ class ThemeProvider with ChangeNotifier {
       case 'aqua': VaporwaveColors.loadAqua(); break;
       case 'matrix': VaporwaveColors.loadMatrix(); break;
       case 'deepblue': VaporwaveColors.loadDeepBlue(); break;
-      default: Vapor
+      default: VaporwaveColors.loadVaporwave(); break;
+    }
+  }
+}
