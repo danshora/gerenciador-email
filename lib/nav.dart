@@ -30,12 +30,11 @@ class _AppNavigationState extends State<AppNavigation> {
         backgroundColor: VaporwaveColors.surface,
         selectedItemColor: VaporwaveColors.neonPink,
         unselectedItemColor: VaporwaveColors.neonCyan,
-        // O const foi removido daqui para as cores poderem mudar livremente!
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.add_circle_outline),
             activeIcon: Icon(Icons.add_box, color: VaporwaveColors.neonPink),
-            label: 'Gerador', // ABA ATUALIZADA AQUI
+            label: 'Gerador',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.list),
