@@ -148,10 +148,43 @@ class _AccountCardState extends State<AccountCard> {
                 icon: Icon(Icons.calendar_month, color: VaporwaveColors.neonCyan, size: 22),
                 color: VaporwaveColors.surfaceVariant,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm), side: BorderSide(color: VaporwaveColors.neonPurple)),
-                onSelected: (int days) => manager.setDays(widget.account.id, days),
+                onSelected: (int val) async {
+                  // SE FOR -1, ABRE O SELETOR DE CALENDÁRIO CUSTOMIZADO
+                  if (val == -1) {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now().add(const Duration(days: 30)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.dark(
+                              primary: VaporwaveColors.neonCyan,
+                              onPrimary: VaporwaveColors.surface,
+                              surface: VaporwaveColors.surfaceVariant,
+                              onSurface: Colors.white,
+                            ),
+                            dialogBackgroundColor: VaporwaveColors.surfaceVariant,
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) {
+                      // Calcula a diferença exata de dias da data escolhida
+                      final days = picked.difference(DateTime.now()).inDays + 1;
+                      manager.setDays(widget.account.id, days);
+                    }
+                  } else {
+                    manager.setDays(widget.account.id, val);
+                  }
+                },
                 itemBuilder: (context) => [
+                  const PopupMenuItem(value: 7, child: Text('1 Semana', style: TextStyle(color: Colors.white))),
                   const PopupMenuItem(value: 30, child: Text('1 Mês', style: TextStyle(color: Colors.white))),
                   const PopupMenuItem(value: 365, child: Text('1 Ano', style: TextStyle(color: Colors.white))),
+                  const PopupMenuItem(value: -1, child: Text('Customizado...', style: TextStyle(color: Colors.white))),
                   const PopupMenuDivider(height: 1),
                   PopupMenuItem(value: 0, child: Text('Expirar Agora', style: TextStyle(color: VaporwaveColors.neonRed))),
                 ],
