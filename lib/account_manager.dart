@@ -7,20 +7,21 @@ import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart';
 
-// O "WidgetsBindingObserver" é o alarme que deteta quando você vai fechar o app
+// Integra o observador de ciclo de vida para detetar o exato milissegundo em que o app é minimizado
 class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
-  static const String _storageKey = 'vapor_data_nuclear';
-  static const String _tagsKey = 'vapor_tags_nuclear';
-  static const String _premiumKey = 'vapor_premium_nuclear';
+  static const String _vaultFile = 'vapor_bunker_accounts.dat';
+  static const String _tagsFile = 'vapor_bunker_tags.dat';
+  static const String _premiumKey = 'vapor_bunker_premium';
 
-  final _iv = enc.IV.fromLength(16);
-  // Chave de nível militar. Impossível de ser hackeada localmente.
+  // Chaves blindadas (EXATAMENTE 16 e 32 bytes)
+  final _iv = enc.IV.fromUtf8('VaporwaveInitVec'); 
   final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
 
   List<Account> _accounts = [];
   List<String> _savedTags = [];
-  bool _dataLoaded = false;
   bool _isPremium = false;
+  bool _isLoaded = false;
+  String? _sysDir;
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -29,12 +30,12 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   List<String> get savedTags => _savedTags;
-  bool get isLoading => !_dataLoaded;
+  bool get isLoading => !_isLoaded;
   bool get isPremium => _isPremium;
 
   AccountManager() {
-    WidgetsBinding.instance.addObserver(this); // Liga o sistema de alarme
-    _loadEverything();
+    WidgetsBinding.instance.addObserver(this);
+    _bootSystem();
   }
 
   @override
@@ -43,20 +44,15 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // ==========================================================
-  // 🚨 O GATILHO DE EMERGÊNCIA (SALVA ANTES DO APP FECHAR)
-  // ==========================================================
+  // 🚨 DETETOR DE ENCERRAMENTO FORÇADO
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Se o usuário abrir a aba de Recentes ou minimizar, SALVA TUDO NA HORA!
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      _emergencySave();
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _nukeSave(); // Grava tudo fisicamente antes do Android conseguir matar o app
     }
   }
 
-  // ==========================================================
-  // 🛡️ TRADUTORES SEGUROS (Contra bugs de data/lista)
-  // ==========================================================
+  // --- TRADUTORES SEGUROS (Anti-Crash de Datas) ---
   Map<String, dynamic> _safeToMap(Account a) {
     return {
       'id': a.id,
@@ -95,44 +91,40 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     );
   }
 
-  // ==========================================================
-  // 🚀 LEITURA COM DUPLA VERIFICAÇÃO
-  // ==========================================================
-  Future<void> _loadEverything() async {
+  // --- INICIALIZAÇÃO BLINDADA ---
+  Future<void> _bootSystem() async {
     try {
+      final dir = await getApplicationDocumentsDirectory();
+      _sysDir = dir.path;
+
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
 
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      
-      String? accountsData = prefs.getString(_storageKey);
-      String? tagsData = prefs.getString(_tagsKey);
+      final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
 
-      // Se falhar o sistema normal, busca no ficheiro físico de backup
-      if (accountsData == null || accountsData.isEmpty) {
+      // 1. LER CONTAS (Prioridade ao ficheiro físico, fallback para SharedPreferences)
+      String? accData;
+      try {
+        final file = File('$_sysDir/$_vaultFile');
+        if (file.existsSync()) accData = file.readAsStringSync();
+      } catch (_) {}
+      accData ??= prefs.getString('backup_acc_v11');
+
+      if (accData != null && accData.isNotEmpty) {
         try {
-          final dir = await getApplicationDocumentsDirectory();
-          final file = File('${dir.path}/$_storageKey.json');
-          if (file.existsSync()) accountsData = file.readAsStringSync();
+          final jsonString = encrypter.decrypt64(accData, iv: _iv);
+          final decoded = json.decode(jsonString) as List<dynamic>;
+          _accounts = decoded.map((item) => _safeFromMap(item as Map<String, dynamic>)).toList();
         } catch (_) {}
       }
 
-      if (accountsData != null && accountsData.isNotEmpty) {
-        try {
-          final jsonString = encrypter.decrypt64(accountsData, iv: _iv);
-          final decodedList = json.decode(jsonString) as List<dynamic>;
-          _accounts = decodedList.map((item) => _safeFromMap(item as Map<String, dynamic>)).toList();
-        } catch (_) {}
-      }
-
-      // Mesma proteção dupla para as Tags
-      if (tagsData == null || tagsData.isEmpty) {
-        try {
-          final dir = await getApplicationDocumentsDirectory();
-          final file = File('${dir.path}/$_tagsKey.json');
-          if (file.existsSync()) tagsData = file.readAsStringSync();
-        } catch (_) {}
-      }
+      // 2. LER TAGS
+      String? tagsData;
+      try {
+        final file = File('$_sysDir/$_tagsFile');
+        if (file.existsSync()) tagsData = file.readAsStringSync();
+      } catch (_) {}
+      tagsData ??= prefs.getString('backup_tags_v11');
 
       if (tagsData != null && tagsData.isNotEmpty) {
         try {
@@ -142,42 +134,48 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
       }
 
     } catch (_) {} finally {
-      _dataLoaded = true;
+      _isLoaded = true;
       notifyListeners();
     }
   }
 
-  // ==========================================================
-  // 🔒 GRAVAÇÃO DUPLA E BLINDADA
-  // ==========================================================
-  Future<void> _emergencySave() async {
-    if (!_dataLoaded) return; // Se não carregou, não salva para não apagar o que existe!
+  // --- O SEGREDO MILITAR: ESCRITA OBRIGATÓRIA NO SILÍCIO ---
+  void _nukeSave() {
+    if (!_isLoaded) return; 
 
     try {
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
 
-      final mapList = _accounts.map((a) => _safeToMap(a)).toList();
-      final encryptedAccounts = encrypter.encrypt(json.encode(mapList), iv: _iv).base64;
-      final encryptedTags = encrypter.encrypt(json.encode(_savedTags), iv: _iv).base64;
+      final accList = _accounts.map((a) => _safeToMap(a)).toList();
+      final accData = encrypter.encrypt(json.encode(accList), iv: _iv).base64;
+      final tagsData = encrypter.encrypt(json.encode(_savedTags), iv: _iv).base64;
 
-      // 1. Grava no buffer ultra-rápido do Android
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageKey, encryptedAccounts);
-      await prefs.setString(_tagsKey, encryptedTags);
+      // 1. Backups invisíveis na nuvem local do Android
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('backup_acc_v11', accData);
+        prefs.setString('backup_tags_v11', tagsData);
+      });
 
-      // 2. Grava forçadamente no disco rígido do telemóvel na mesma hora
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        File('${dir.path}/$_storageKey.json').writeAsStringSync(encryptedAccounts, flush: true);
-        File('${dir.path}/$_tagsKey.json').writeAsStringSync(encryptedTags, flush: true);
-      } catch (_) {}
+      // 2. FORÇA BRUTA: Escrita Atómica Síncrona no Hardware
+      if (_sysDir != null) {
+        // Grava as Contas
+        final accFile = File('$_sysDir/$_vaultFile');
+        final raf1 = accFile.openSync(mode: FileMode.write);
+        raf1.writeStringSync(accData);
+        raf1.flushSync(); // <- O COMANDO QUE OBRIGA O CHIP A GUARDAR OS DADOS AGORA
+        raf1.closeSync();
 
+        // Grava as Tags
+        final tagsFile = File('$_sysDir/$_tagsFile');
+        final raf2 = tagsFile.openSync(mode: FileMode.write);
+        raf2.writeStringSync(tagsData);
+        raf2.flushSync(); // <- O COMANDO QUE OBRIGA O CHIP A GUARDAR OS DADOS AGORA
+        raf2.closeSync();
+      }
     } catch (_) {}
   }
 
-  // ==========================================================
-  // 🛠️ MÉTODOS DE NEGÓCIO DO APP
-  // ==========================================================
+  // --- REGRAS DE NEGÓCIO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
@@ -194,7 +192,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
           _accounts[i] = _accounts[i].copyWith(tags: newTags);
         }
       }
-      _emergencySave();
+      _nukeSave();
     }
     notifyListeners();
   }
@@ -208,7 +206,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     if (_savedTags.length >= limite) return false;
 
     _savedTags.add(cleanTag);
-    _emergencySave();
+    _nukeSave();
     notifyListeners();
     return true;
   }
@@ -221,13 +219,13 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
         _accounts[i] = _accounts[i].copyWith(tags: newTags);
       }
     }
-    _emergencySave();
+    _nukeSave();
     notifyListeners();
   }
 
   void addAccount(Account account) {
     _accounts.insert(0, account);
-    _emergencySave();
+    _nukeSave(); // Salva e trava o celular instantaneamente
     notifyListeners();
   }
 
@@ -235,14 +233,14 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     final index = _accounts.indexWhere((a) => a.id == updatedAccount.id);
     if (index != -1) {
       _accounts[index] = updatedAccount;
-      _emergencySave();
+      _nukeSave(); // Salva e trava o celular instantaneamente
       notifyListeners();
     }
   }
 
   void deleteAccount(String id) {
     _accounts.removeWhere((a) => a.id == id);
-    _emergencySave();
+    _nukeSave();
     notifyListeners();
   }
 
@@ -251,7 +249,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(isReady: !acc.isReady);
-      _emergencySave();
+      _nukeSave();
       notifyListeners();
     }
   }
@@ -261,7 +259,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(isFavorite: !acc.isFavorite);
-      _emergencySave();
+      _nukeSave();
       notifyListeners();
     }
   }
@@ -271,7 +269,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(expiresAt: DateTime.now().add(Duration(days: days)), hasExpiration: true);
-      _emergencySave();
+      _nukeSave();
       notifyListeners();
     }
   }
@@ -326,7 +324,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
           _accounts.add(newAcc);
         }
       }
-      _emergencySave();
+      _nukeSave();
       notifyListeners();
       return true;
     } catch (e) {
