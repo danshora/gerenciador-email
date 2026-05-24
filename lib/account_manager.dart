@@ -8,14 +8,13 @@ import 'package:encrypt/encrypt.dart' as enc;
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  // Mudança para V6 para isolar completamente de qualquer buffer corrompido anterior
   static const String _storageKey = 'vaporwave_accounts_v6.json'; 
   static const String _savedTagsKey = 'vaporwave_global_tags_v6.json'; 
   static const String _premiumKey = 'vaporwave_is_premium_v6'; 
   
   final _iv = enc.IV.fromLength(16);
   
-  // Chave Mestre Estática de 32 bytes estável e imune a resets de Keystore
+  // Chave Mestre Estática de 32 bytes estável e imune a resets
   final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
   
   List<Account> _accounts = [];
@@ -61,7 +60,8 @@ class AccountManager extends ChangeNotifier {
       if (await accountsFile.exists()) {
         try {
           final encryptedAccounts = await accountsFile.readAsString();
-          final jsonString = encrypter.decrypt64(encryptedAccounts, id: _iv);
+          // CORREÇÃO AQUI: iv: _iv em vez de id: _iv
+          final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
           final List<dynamic> decodedList = json.decode(jsonString);
           
           final List<Account> loadedAccounts = [];
@@ -85,7 +85,8 @@ class AccountManager extends ChangeNotifier {
       if (await tagsFile.exists()) {
         try {
           final encryptedTags = await tagsFile.readAsString();
-          final tagsJsonString = encrypter.decrypt64(encryptedTags, id: _iv);
+          // CORREÇÃO AQUI: iv: _iv em vez de id: _iv
+          final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
           _savedTags = List<String>.from(json.decode(tagsJsonString));
         } catch (e) {
           debugPrint('Erro na decodificação do bloco de tags: $e');
@@ -113,7 +114,6 @@ class AccountManager extends ChangeNotifier {
       
       final accountsFile = File('$dirPath/$_storageKey');
       
-      // 🛡️ O SEGREDO DO SUCESSO: flush: true obriga o hardware a escrever imediatamente
       await accountsFile.writeAsString(encryptedData, flush: true);
     } catch (e) {
       debugPrint('Erro ao escrever ficheiro físico de contas: $e');
