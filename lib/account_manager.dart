@@ -6,7 +6,6 @@ import 'package:encrypt/encrypt.dart' as enc;
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  // Chaves V3 garantem que o app ignore os dados corrompidos pelas versões anteriores
   static const String _storageKey = 'vaporwave_accounts_v3'; 
   static const String _savedTagsKey = 'vaporwave_global_tags_v3'; 
   static const String _premiumKey = 'vaporwave_is_premium_v3'; 
@@ -33,7 +32,7 @@ class AccountManager extends ChangeNotifier {
     _loadAccounts();
   }
 
-  // --- O NOVO COFRE DE SOFTWARE (À PROVA DE AMNÉSIA DO ANDROID) ---
+  // --- O NOVO COFRE DE SOFTWARE ---
   Future<enc.Key> _getMasterKey(SharedPreferences prefs) async {
     String? base64Key = prefs.getString(_softwareKeyName);
     
@@ -124,7 +123,7 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  // --- LÓGICA DE NEGÓCIO INTACTA ---
+  // --- LÓGICA DE NEGÓCIO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
@@ -251,4 +250,22 @@ class AccountManager extends ChangeNotifier {
     try {
       String jsonString;
       try {
-        final key = _getKeyFrom
+        final key = _getKeyFromPassword(password);
+        final encrypter = enc.Encrypter(enc.AES(key));
+        jsonString = encrypter.decrypt64(inputData, iv: _iv);
+      } catch (_) {
+        jsonString = inputData;
+      }
+      final List<dynamic> decodedList = json.decode(jsonString);
+      final List<Account> importedAccounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
+      for (var newAcc in importedAccounts) {
+        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) _accounts.add(newAcc);
+      }
+      _saveAccounts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}
