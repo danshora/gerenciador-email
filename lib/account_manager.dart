@@ -8,15 +8,14 @@ import 'package:encrypt/encrypt.dart' as enc;
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  // Mudança para V5 para ignorar qualquer resíduo corrompido das tentativas anteriores
-  static const String _storageKey = 'vaporwave_accounts_v5.json'; 
-  static const String _savedTagsKey = 'vaporwave_global_tags_v5.json'; 
-  static const String _premiumKey = 'vaporwave_is_premium_v5'; 
+  // Mudança para V6 para isolar completamente de qualquer buffer corrompido anterior
+  static const String _storageKey = 'vaporwave_accounts_v6.json'; 
+  static const String _savedTagsKey = 'vaporwave_global_tags_v6.json'; 
+  static const String _premiumKey = 'vaporwave_is_premium_v6'; 
   
   final _iv = enc.IV.fromLength(16);
   
-  // 🛡️ CHAVE MESTRE ESTÁTICA EM DART (Exatamente 32 bytes / caracteres)
-  // Sendo estática, o Android pode reiniciar o telemóvel que a chave NUNCA desaparece.
+  // Chave Mestre Estática de 32 bytes estável e imune a resets de Keystore
   final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
   
   List<Account> _accounts = [];
@@ -48,7 +47,7 @@ class AccountManager extends ChangeNotifier {
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
-  // --- LEITURA DO FICHEIRO FÍSICO ---
+  // --- LEITURA BLINDADA ---
   Future<void> _loadAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -57,16 +56,27 @@ class AccountManager extends ChangeNotifier {
       final encrypter = enc.Encrypter(enc.AES(_masterKey));
       final dirPath = await _getAppDirectory();
 
-      // 1. CARREGAR CONTAS
+      // 1. CARREGAR CONTAS COM CAPTURA DE ERRO POR ITEM
       final accountsFile = File('$dirPath/$_storageKey');
       if (await accountsFile.exists()) {
         try {
           final encryptedAccounts = await accountsFile.readAsString();
-          final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
+          final jsonString = encrypter.decrypt64(encryptedAccounts, id: _iv);
           final List<dynamic> decodedList = json.decode(jsonString);
-          _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
+          
+          final List<Account> loadedAccounts = [];
+          for (var item in decodedList) {
+            try {
+              if (item is Map<String, dynamic>) {
+                loadedAccounts.add(Account.fromMap(item));
+              }
+            } catch (itemError) {
+              debugPrint('Aviso: Ignorada conta malformada para evitar corrupção: $itemError');
+            }
+          }
+          _accounts = loadedAccounts;
         } catch (e) {
-          debugPrint('Erro na decodificação das contas: $e');
+          debugPrint('Erro na decodificação do bloco de contas: $e');
         }
       }
 
@@ -75,22 +85,22 @@ class AccountManager extends ChangeNotifier {
       if (await tagsFile.exists()) {
         try {
           final encryptedTags = await tagsFile.readAsString();
-          final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
+          final tagsJsonString = encrypter.decrypt64(encryptedTags, id: _iv);
           _savedTags = List<String>.from(json.decode(tagsJsonString));
         } catch (e) {
-          debugPrint('Erro na decodificação das tags: $e');
+          debugPrint('Erro na decodificação do bloco de tags: $e');
         }
       }
 
     } catch (e) {
-      debugPrint('Erro geral de leitura: $e');
+      debugPrint('Erro geral crítico de leitura física: $e');
     } finally {
       _isLoading = false; 
       notifyListeners();
     }
   }
 
-  // --- GRAVAÇÃO NO FICHEIRO FÍSICO ---
+  // --- GRAVAÇÃO ABSOLUTA COM FLUSH ATIVO ---
   Future<void> _saveAccounts() async {
     if (_isLoading) return; 
 
@@ -102,9 +112,11 @@ class AccountManager extends ChangeNotifier {
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
       final accountsFile = File('$dirPath/$_storageKey');
-      await accountsFile.writeAsString(encryptedData);
+      
+      // 🛡️ O SEGREDO DO SUCESSO: flush: true obriga o hardware a escrever imediatamente
+      await accountsFile.writeAsString(encryptedData, flush: true);
     } catch (e) {
-      debugPrint('Erro ao escrever ficheiro de contas: $e');
+      debugPrint('Erro ao escrever ficheiro físico de contas: $e');
     }
   }
 
@@ -119,9 +131,9 @@ class AccountManager extends ChangeNotifier {
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
       final tagsFile = File('$dirPath/$_savedTagsKey');
-      await tagsFile.writeAsString(encryptedData);
+      await tagsFile.writeAsString(encryptedData, flush: true);
     } catch (e) {
-      debugPrint('Erro ao escrever ficheiro de tags: $e');
+      debugPrint('Erro ao escrever ficheiro físico de tags: $e');
     }
   }
 
@@ -259,9 +271,18 @@ class AccountManager extends ChangeNotifier {
         jsonString = inputData;
       }
       final List<dynamic> decodedList = json.decode(jsonString);
-      final List<Account> importedAccounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
+      final List<Account> importedAccounts = [];
+      for (var item in decodedList) {
+        try {
+          if (item is Map<String, dynamic>) {
+            importedAccounts.add(Account.fromMap(item));
+          }
+        } catch (_) {}
+      }
       for (var newAcc in importedAccounts) {
-        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) _accounts.add(newAcc);
+        if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) {
+          _accounts.add(newAcc);
+        }
       }
       _saveAccounts();
       notifyListeners();
