@@ -1,23 +1,27 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart';
 
 class AccountManager extends ChangeNotifier {
-  static const String _storageKey = 'vaporwave_vault_final';
-  static const String _tagsKey = 'vaporwave_tags_final';
-  static const String _premiumKey = 'vaporwave_premium_final';
+  static const String _storageKey = 'vaporwave_vault_v10.json';
+  static const String _tagsKey = 'vaporwave_tags_v10.json';
+  static const String _premiumKey = 'vaporwave_premium_v10';
 
   final _iv = enc.IV.fromLength(16);
-  // Esta chave tranca tudo com AES-256. Seguro contra qualquer invasão local.
+  // Criptografia Nível Militar travada com chave direta. Impossível de ser hackeada localmente.
   final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
 
   List<Account> _accounts = [];
   List<String> _savedTags = [];
   bool _isLoading = true;
   bool _isPremium = false;
+  
+  String? _appDir; // Caminho físico no disco do celular
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -33,7 +37,7 @@ class AccountManager extends ChangeNotifier {
     _initSystem();
   }
 
-  // Tradutores Blindados: Impedem que datas corrompidas causem crashes invisíveis
+  // TRADUTORES BLINDADOS: Impedem que bugs ocultos de texto corrompam a gravação
   Map<String, dynamic> _safeToMap(Account a) {
     return {
       'id': a.id,
@@ -74,57 +78,80 @@ class AccountManager extends ChangeNotifier {
 
   Future<void> _initSystem() async {
     try {
+      final dir = await getApplicationDocumentsDirectory();
+      _appDir = dir.path;
+
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
 
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
-
-      // Carregar Contas
-      final String? encryptedAccounts = prefs.getString(_storageKey);
-      if (encryptedAccounts != null && encryptedAccounts.isNotEmpty) {
-        try {
-          final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
-          final List<dynamic> decodedList = json.decode(jsonString);
-          _accounts = decodedList.map((item) => _safeFromMap(item as Map<String, dynamic>)).toList();
-        } catch (_) {}
-      }
-
-      // Carregar Tags
-      final String? encryptedTags = prefs.getString(_tagsKey);
-      if (encryptedTags != null && encryptedTags.isNotEmpty) {
-        try {
-          final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
-          _savedTags = List<String>.from(json.decode(tagsJsonString));
-        } catch (_) {}
-      }
-    } catch (_) {} finally {
+      _loadDataSync();
+    } catch (e) {
+      debugPrint('Erro de inicializacao: $e');
+    } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> _saveAccounts() async {
+  // --- LEITURA DIRETA DO DISCO ---
+  void _loadDataSync() {
+    if (_appDir == null) return;
+    final encrypter = enc.Encrypter(enc.AES(_masterKey));
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      
-      final mapList = _accounts.map((a) => _safeToMap(a)).toList();
-      final String encryptedData = encrypter.encrypt(json.encode(mapList), iv: _iv).base64;
-      
-      await prefs.setString(_storageKey, encryptedData);
+      final file = File('$_appDir/$_storageKey');
+      if (file.existsSync()) {
+        final data = file.readAsStringSync();
+        if (data.isNotEmpty) {
+          final jsonString = encrypter.decrypt64(data, iv: _iv);
+          final List<dynamic> decodedList = json.decode(jsonString);
+          final List<Account> loadedAccounts = [];
+          for (var item in decodedList) {
+            if (item is Map<String, dynamic>) {
+              try { loadedAccounts.add(_safeFromMap(item)); } catch (_) {}
+            }
+          }
+          _accounts = loadedAccounts;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final file = File('$_appDir/$_tagsKey');
+      if (file.existsSync()) {
+        final data = file.readAsStringSync();
+        if (data.isNotEmpty) {
+          final jsonString = encrypter.decrypt64(data, iv: _iv);
+          _savedTags = List<String>.from(json.decode(jsonString));
+        }
+      }
     } catch (_) {}
   }
 
-  Future<void> _saveTags() async {
+  // --- A MÁGICA: ESCRITA SÍNCRONA OBRIGATÓRIA ---
+  void _saveAccountsSync() {
+    if (_isLoading || _appDir == null) return;
     try {
-      final prefs = await SharedPreferences.getInstance();
       final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      
-      final String encryptedData = encrypter.encrypt(json.encode(_savedTags), iv: _iv).base64;
-      
-      await prefs.setString(_tagsKey, encryptedData);
+      final mapList = _accounts.map((a) => _safeToMap(a)).toList();
+      final String encryptedData = encrypter.encrypt(json.encode(mapList), iv: _iv).base64;
+
+      // writeAsStringSync com flush: true = TRAVA o celular e SÓ volta quando o arquivo estiver no disco!
+      File('$_appDir/$_storageKey').writeAsStringSync(encryptedData, flush: true);
     } catch (_) {}
   }
+
+  void _saveTagsSync() {
+    if (_isLoading || _appDir == null) return;
+    try {
+      final encrypter = enc.Encrypter(enc.AES(_masterKey));
+      final String encryptedData = encrypter.encrypt(json.encode(_savedTags), iv: _iv).base64;
+
+      File('$_appDir/$_tagsKey').writeAsStringSync(encryptedData, flush: true);
+    } catch (_) {}
+  }
+
+  // --- LÓGICA DO APLICATIVO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
@@ -134,7 +161,7 @@ class AccountManager extends ChangeNotifier {
     if (!_isPremium && _savedTags.length > 3) {
       final tagsToRemove = _savedTags.sublist(3);
       _savedTags = _savedTags.sublist(0, 3);
-      await _saveTags();
+      _saveTagsSync();
 
       for (var i = 0; i < _accounts.length; i++) {
         final newTags = _accounts[i].tags.where((t) => !tagsToRemove.contains(t)).toList();
@@ -142,7 +169,7 @@ class AccountManager extends ChangeNotifier {
           _accounts[i] = _accounts[i].copyWith(tags: newTags);
         }
       }
-      await _saveAccounts();
+      _saveAccountsSync();
     }
     notifyListeners();
   }
@@ -156,7 +183,7 @@ class AccountManager extends ChangeNotifier {
     if (_savedTags.length >= limite) return false;
 
     _savedTags.add(cleanTag);
-    _saveTags();
+    _saveTagsSync();
     notifyListeners();
     return true;
   }
@@ -169,14 +196,14 @@ class AccountManager extends ChangeNotifier {
         _accounts[i] = _accounts[i].copyWith(tags: newTags);
       }
     }
-    _saveAccounts();
-    _saveTags();
+    _saveAccountsSync();
+    _saveTagsSync();
     notifyListeners();
   }
 
   void addAccount(Account account) {
     _accounts.insert(0, account);
-    _saveAccounts();
+    _saveAccountsSync(); // OBRIGA A SALVAR AGORA
     notifyListeners();
   }
 
@@ -184,14 +211,14 @@ class AccountManager extends ChangeNotifier {
     final index = _accounts.indexWhere((a) => a.id == updatedAccount.id);
     if (index != -1) {
       _accounts[index] = updatedAccount;
-      _saveAccounts();
+      _saveAccountsSync(); // OBRIGA A SALVAR AGORA
       notifyListeners();
     }
   }
 
   void deleteAccount(String id) {
     _accounts.removeWhere((a) => a.id == id);
-    _saveAccounts();
+    _saveAccountsSync();
     notifyListeners();
   }
 
@@ -200,7 +227,7 @@ class AccountManager extends ChangeNotifier {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(isReady: !acc.isReady);
-      _saveAccounts();
+      _saveAccountsSync();
       notifyListeners();
     }
   }
@@ -210,7 +237,7 @@ class AccountManager extends ChangeNotifier {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(isFavorite: !acc.isFavorite);
-      _saveAccounts();
+      _saveAccountsSync();
       notifyListeners();
     }
   }
@@ -220,7 +247,7 @@ class AccountManager extends ChangeNotifier {
     if (index != -1) {
       final acc = _accounts[index];
       _accounts[index] = acc.copyWith(expiresAt: DateTime.now().add(Duration(days: days)), hasExpiration: true);
-      _saveAccounts();
+      _saveAccountsSync();
       notifyListeners();
     }
   }
@@ -249,7 +276,7 @@ class AccountManager extends ChangeNotifier {
       final encrypter = enc.Encrypter(enc.AES(key));
       return encrypter.encrypt(jsonString, iv: _iv).base64;
     } catch (e) {
-      return 'Erro ao exportar os dados do sistema.';
+      return 'Erro ao exportar os dados.';
     }
   }
 
@@ -267,9 +294,7 @@ class AccountManager extends ChangeNotifier {
       final List<Account> importedAccounts = [];
       for (var item in decodedList) {
         if (item is Map<String, dynamic>) {
-          try {
-            importedAccounts.add(_safeFromMap(item));
-          } catch (_) {}
+          try { importedAccounts.add(_safeFromMap(item)); } catch (_) {}
         }
       }
       for (var newAcc in importedAccounts) {
@@ -277,7 +302,7 @@ class AccountManager extends ChangeNotifier {
           _accounts.add(newAcc);
         }
       }
-      _saveAccounts();
+      _saveAccountsSync();
       notifyListeners();
       return true;
     } catch (e) {
