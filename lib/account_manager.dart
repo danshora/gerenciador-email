@@ -1,20 +1,19 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  static const String _storageKey = 'vaporwave_accounts_v6.json'; 
-  static const String _savedTagsKey = 'vaporwave_global_tags_v6.json'; 
-  static const String _premiumKey = 'vaporwave_is_premium_v6'; 
+  // Mudança para V7 para criar um registro totalmente limpo e imune a erros do passado
+  static const String _storageKey = 'vaporwave_vault_final_v7'; 
+  static const String _savedTagsKey = 'vaporwave_tags_final_v7'; 
+  static const String _premiumKey = 'vaporwave_premium_final_v7'; 
   
   final _iv = enc.IV.fromLength(16);
   
-  // Chave Mestre Estática de 32 bytes estável e imune a resets
+  // Chave Mestre Estática de 32 bytes estável e imune a limpezas de hardware
   final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
   
   List<Account> _accounts = [];
@@ -36,87 +35,74 @@ class AccountManager extends ChangeNotifier {
     _loadAllData();
   }
 
-  Future<String> _getAppDirectory() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
-  }
-
   enc.Key _getKeyFromPassword(String password) {
     final salted = password + 'VaporManagerCyberVaultSecretK3y!';
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
-  // --- LEITURA BLINDADA ---
+  // --- LEITURA DIRETA DO SISTEMA ---
   Future<void> _loadAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
       
       final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      final dirPath = await _getAppDirectory();
 
-      // 1. CARREGAR CONTAS COM CAPTURA DE ERRO POR ITEM
-      final accountsFile = File('$dirPath/$_storageKey');
-      if (await accountsFile.exists()) {
+      // 1. CARREGAR COFRE DE CONTAS
+      final String? encryptedAccounts = prefs.getString(_storageKey);
+      if (encryptedAccounts != null && encryptedAccounts.isNotEmpty) {
         try {
-          final encryptedAccounts = await accountsFile.readAsString();
-          // CORREÇÃO AQUI: iv: _iv em vez de id: _iv
           final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
           final List<dynamic> decodedList = json.decode(jsonString);
           
           final List<Account> loadedAccounts = [];
           for (var item in decodedList) {
-            try {
-              if (item is Map<String, dynamic>) {
+            if (item is Map<String, dynamic>) {
+              try {
                 loadedAccounts.add(Account.fromMap(item));
-              }
-            } catch (itemError) {
-              debugPrint('Aviso: Ignorada conta malformada para evitar corrupção: $itemError');
+              } catch (_) {}
             }
           }
           _accounts = loadedAccounts;
         } catch (e) {
-          debugPrint('Erro na decodificação do bloco de contas: $e');
+          debugPrint('Erro de decodificação no cofre de contas: $e');
         }
       }
 
-      // 2. CARREGAR TAGS
-      final tagsFile = File('$dirPath/$_savedTagsKey');
-      if (await tagsFile.exists()) {
+      // 2. CARREGAR COFRE DE TAGS
+      final String? encryptedTags = prefs.getString(_savedTagsKey);
+      if (encryptedTags != null && encryptedTags.isNotEmpty) {
         try {
-          final encryptedTags = await tagsFile.readAsString();
-          // CORREÇÃO AQUI: iv: _iv em vez de id: _iv
           final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
           _savedTags = List<String>.from(json.decode(tagsJsonString));
         } catch (e) {
-          debugPrint('Erro na decodificação do bloco de tags: $e');
+          debugPrint('Erro de decodificação no cofre de tags: $e');
         }
       }
 
     } catch (e) {
-      debugPrint('Erro geral crítico de leitura física: $e');
+      debugPrint('Erro crítico no carregamento de dados: $e');
     } finally {
       _isLoading = false; 
       notifyListeners();
     }
   }
 
-  // --- GRAVAÇÃO ABSOLUTA COM FLUSH ATIVO ---
+  // --- GRAVAÇÃO COMPACTA E IMEDIATA NO SISTEMA ---
   Future<void> _saveAccounts() async {
     if (_isLoading) return; 
 
     try {
+      final prefs = await SharedPreferences.getInstance();
       final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      final accountsFile = File('$dirPath/$_storageKey');
-      
-      await accountsFile.writeAsString(encryptedData, flush: true);
+      // Grava a String encriptada diretamente na tabela nativa estável do Android
+      await prefs.setString(_storageKey, encryptedData);
     } catch (e) {
-      debugPrint('Erro ao escrever ficheiro físico de contas: $e');
+      debugPrint('Erro ao salvar contas no sistema: $e');
     }
   }
 
@@ -124,16 +110,15 @@ class AccountManager extends ChangeNotifier {
     if (_isLoading) return; 
 
     try {
+      final prefs = await SharedPreferences.getInstance();
       final encrypter = enc.Encrypter(enc.AES(_masterKey));
-      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_savedTags);
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      final tagsFile = File('$dirPath/$_savedTagsKey');
-      await tagsFile.writeAsString(encryptedData, flush: true);
+      await prefs.setString(_savedTagsKey, encryptedData);
     } catch (e) {
-      debugPrint('Erro ao escrever ficheiro físico de tags: $e');
+      debugPrint('Erro ao salvar tags no sistema: $e');
     }
   }
 
@@ -273,11 +258,11 @@ class AccountManager extends ChangeNotifier {
       final List<dynamic> decodedList = json.decode(jsonString);
       final List<Account> importedAccounts = [];
       for (var item in decodedList) {
-        try {
-          if (item is Map<String, dynamic>) {
+        if (item is Map<String, dynamic>) {
+          try {
             importedAccounts.add(Account.fromMap(item));
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
       }
       for (var newAcc in importedAccounts) {
         if (!_accounts.any((oldAcc) => oldAcc.id == newAcc.id)) {
