@@ -7,23 +7,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  static const String _storageKey = 'vaporwave_accounts';
-  static const String _storageKeyFallback = 'vaporwave_accounts_backup'; 
+  static const String _storageKey = 'vaporwave_accounts'; 
   static const String _savedTagsKey = 'vaporwave_global_tags'; 
-  static const String _savedTagsKeyFallback = 'vaporwave_tags_backup'; 
   static const String _premiumKey = 'vaporwave_is_premium'; 
   static const String _internalKeyName = 'vapor_hardware_master_key'; 
+  static const String _softwareKeyName = 'vapor_software_master_key'; 
   
   final _iv = enc.IV.fromLength(16);
   
-  // 🛡️ Instância única e consistente com o hardware
+  // Instância de Hardware
   final _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
-  
-  final enc.Key _fallbackKey = enc.Key.fromUtf8('VaporManagerCyberVaultF4llb4ckK3');
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
@@ -44,25 +39,26 @@ class AccountManager extends ChangeNotifier {
     _loadAccounts();
   }
 
-  Future<enc.Key> _getInternalMasterKey() async {
-    String? base64Key;
+  // --- NÚCLEO DE SEGURANÇA À PROVA DE FALHAS ---
+  Future<enc.Key> _getMasterKey() async {
     try {
-      base64Key = await _secureStorage.read(key: _internalKeyName);
-    } catch (e) {
-      debugPrint('Erro ao ler chip de segurança: $e');
-    }
-
-    if (base64Key == null) {
-      try {
-        final secureRandom = enc.Key.fromSecureRandom(32);
-        base64Key = secureRandom.base64;
+      // Tentativa 1: Tenta usar o Chip de Segurança do telemóvel
+      String? base64Key = await _secureStorage.read(key: _internalKeyName);
+      if (base64Key == null) {
+        base64Key = enc.Key.fromSecureRandom(32).base64;
         await _secureStorage.write(key: _internalKeyName, value: base64Key);
-      } catch (e) {
-        debugPrint('Falha total de Hardware. Usando chave secundária: $e');
-        return enc.Key.fromUtf8('HardwareFailedFallbackKeySecure32B');
       }
+      return enc.Key.fromBase64(base64Key);
+    } catch (e) {
+      // Tentativa 2: Se o telemóvel for incompatível ou falhar, usa o SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      String? softKey = prefs.getString(_softwareKeyName);
+      if (softKey == null) {
+        softKey = enc.Key.fromSecureRandom(32).base64;
+        await prefs.setString(_softwareKeyName, softKey);
+      }
+      return enc.Key.fromBase64(softKey);
     }
-    return enc.Key.fromBase64(base64Key);
   }
 
   enc.Key _getKeyFromPassword(String password) {
@@ -75,126 +71,87 @@ class AccountManager extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
       
-      final masterKey = await _getInternalMasterKey();
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
-      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
 
-      String? jsonString;
-      final String? encryptedData = prefs.getString(_storageKey);
-      
-      // 1. Tentar ler do Cofre Principal (Hardware)
-      if (encryptedData != null) {
+      // Carregar Contas
+      final String? encryptedAccounts = prefs.getString(_storageKey);
+      if (encryptedAccounts != null) {
         try {
-          if (encryptedData.trim().startsWith('[')) {
-            jsonString = encryptedData; // Migração antiga de texto limpo
+          if (encryptedAccounts.startsWith('[')) { 
+            // Recupera dados se alguma vez foram salvos sem encriptação
+            final List<dynamic> decodedList = json.decode(encryptedAccounts);
+            _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
+            _saveAccounts(); // Grava imediatamente encriptado
           } else {
-            jsonString = encrypter.decrypt64(encryptedData, iv: _iv);
+            final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
+            final List<dynamic> decodedList = json.decode(jsonString);
+            _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
           }
         } catch (e) {
-          debugPrint('Keystore falhou ou foi resetado pelo Android. Acionando resgate...');
+          debugPrint('Falha ao descriptografar contas: $e');
         }
       }
 
-      // 2. Tentar ler do Cofre de Paraquedas (Software)
-      if (jsonString == null) {
-        final String? fallbackData = prefs.getString(_storageKeyFallback);
-        if (fallbackData != null) {
-          try {
-            jsonString = fallbackEncrypter.decrypt64(fallbackData, iv: _iv);
-            debugPrint('🔄 SISTEMA DE PARAQUEDAS ATIVADO: Dados recuperados via Software!');
-          } catch (e) {
-            debugPrint('Falha crítica: Nem o paraquedas conseguiu ler: $e');
-          }
-        }
-      }
-
-      if (jsonString != null) {
-        final List<dynamic> decodedList = json.decode(jsonString);
-        _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
-      }
-
-      // --- CARREGAR TAGS ---
-      String? tagsJsonString;
-      final String? tagsData = prefs.getString(_savedTagsKey);
-
-      if (tagsData != null) {
+      // Carregar Tags
+      final String? encryptedTags = prefs.getString(_savedTagsKey);
+      if (encryptedTags != null) {
         try {
-          if (tagsData.trim().startsWith('[')) {
-            tagsJsonString = tagsData;
+          if (encryptedTags.startsWith('[')) {
+            _savedTags = List<String>.from(json.decode(encryptedTags));
+            _saveGlobalTags();
           } else {
-            tagsJsonString = encrypter.decrypt64(tagsData, iv: _iv);
+            final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
+            _savedTags = List<String>.from(json.decode(tagsJsonString));
           }
-        } catch (_) {}
-      }
-
-      if (tagsJsonString == null) {
-        final String? tagsFallback = prefs.getString(_savedTagsKeyFallback);
-        if (tagsFallback != null) {
-          try {
-            tagsJsonString = fallbackEncrypter.decrypt64(tagsFallback, iv: _iv);
-          } catch (_) {}
+        } catch (e) {
+          debugPrint('Falha ao descriptografar tags: $e');
         }
-      }
-
-      if (tagsJsonString != null) {
-        _savedTags = List<String>.from(json.decode(tagsJsonString));
       }
 
     } catch (e) {
       debugPrint('Erro extremo na leitura: $e');
     } finally {
-      _isLoading = false; // Carregamento finalizado com sucesso!
+      _isLoading = false; 
       notifyListeners();
     }
   }
 
   Future<void> _saveAccounts() async {
-    if (_isLoading) return; // 🛑 TRAVA ANTI-SOBREESCRITA: Impede apagar dados durante o arranque!
+    if (_isLoading) return; // Trava contra gravação enquanto carrega
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final masterKey = await _getInternalMasterKey();
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
-      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
-      
-      // Salva no Principal (Hardware)
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
-      await prefs.setString(_storageKey, encryptedData);
       
-      // Salva no Paraquedas (Software)
-      final String fallbackData = fallbackEncrypter.encrypt(jsonString, iv: _iv).base64;
-      await prefs.setString(_storageKeyFallback, fallbackData);
-
+      await prefs.setString(_storageKey, encryptedData);
     } catch (e) {
       debugPrint('Erro ao gravar contas: $e');
     }
   }
 
   Future<void> _saveGlobalTags() async {
-    if (_isLoading) return; // 🛑 TRAVA ANTI-SOBREESCRITA
+    if (_isLoading) return; 
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final masterKey = await _getInternalMasterKey();
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
-      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
       
       final String jsonString = json.encode(_savedTags);
-      
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
+      
       await prefs.setString(_savedTagsKey, encryptedData);
-
-      final String fallbackData = fallbackEncrypter.encrypt(jsonString, iv: _iv).base64;
-      await prefs.setString(_savedTagsKeyFallback, fallbackData);
-
     } catch (e) {
       debugPrint('Erro ao gravar tags: $e');
     }
   }
 
-  // --- MÉTODOS DE NEGÓCIO RESTANTES PERFEITOS ---
+  // --- LÓGICA DE NEGÓCIO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
