@@ -13,12 +13,22 @@ class AccountManager extends ChangeNotifier {
   static const String _internalKeyName = 'vapor_hardware_master_key'; 
   
   final _iv = enc.IV.fromLength(16);
-  final _secureStorage = const FlutterSecureStorage();
+  
+  // 🛡️ CORREÇÃO 1: Forçar persistência de hardware no Android. 
+  // Impede que o sistema operativo "esqueça" a chave quando a RAM é limpa.
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
   bool _isLoading = true;
   bool _isPremium = false; 
+
+  // 🛡️ CORREÇÃO 3: Trava contra sobreposição.
+  bool _isDatabaseCorrupted = false;
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -34,13 +44,9 @@ class AccountManager extends ChangeNotifier {
     _loadAccounts();
   }
 
-  // --- NÚCLEO DE SEGURANÇA (CRIPTOGRAFIA EM REPOUSO) ---
-  
-  // Gera e recupera uma chave mestre única presa ao hardware do celular
   Future<enc.Key> _getInternalMasterKey() async {
     String? base64Key = await _secureStorage.read(key: _internalKeyName);
     if (base64Key == null) {
-      // Se não existir, cria uma nova chave de 32 bytes e salva no Keystore
       final secureRandom = enc.Key.fromSecureRandom(32);
       base64Key = secureRandom.base64;
       await _secureStorage.write(key: _internalKeyName, value: base64Key);
@@ -48,7 +54,6 @@ class AccountManager extends ChangeNotifier {
     return enc.Key.fromBase64(base64Key);
   }
 
-  // Chave derivada para a exportação (onde o usuário digita a senha dele)
   enc.Key _getKeyFromPassword(String password) {
     final salted = password + 'VaporManagerCyberVaultSecretK3y!';
     return enc.Key.fromUtf8(salted.substring(0, 32));
@@ -61,43 +66,54 @@ class AccountManager extends ChangeNotifier {
       final masterKey = await _getInternalMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
 
+      bool realizouMigracao = false;
+
       // 1. CARREGAR CONTAS
       final String? accountsData = prefs.getString(_storageKey);
       if (accountsData != null) {
         String jsonString;
         try {
-          // Tenta desencriptar (Formato Novo Seguro)
           jsonString = encrypter.decrypt64(accountsData, iv: _iv);
         } catch (e) {
-          // Se falhar, assume que é do Formato Antigo (Texto Limpo) e converte
-          jsonString = accountsData;
-          debugPrint('Migrando banco de contas para formato encriptado...');
+          // 🛡️ CORREÇÃO 2: Só migra se tiver a certeza de que é um texto limpo antigo (começa com "[")
+          if (accountsData.trim().startsWith('[')) {
+            jsonString = accountsData;
+            realizouMigracao = true;
+            debugPrint('Migrando banco de contas para encriptado...');
+          } else {
+            throw Exception('Falha na chave Mestra. Dados inacessíveis.');
+          }
         }
         final List<dynamic> decodedList = json.decode(jsonString);
         _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
 
-      // 2. CARREGAR TAGS GLOBAIS
+      // 2. CARREGAR TAGS
       final String? tagsData = prefs.getString(_savedTagsKey);
       if (tagsData != null) {
         String tagsJsonString;
         try {
           tagsJsonString = encrypter.decrypt64(tagsData, iv: _iv);
         } catch (e) {
-          tagsJsonString = tagsData;
-          debugPrint('Migrando banco de tags para formato encriptado...');
+          if (tagsData.trim().startsWith('[')) {
+            tagsJsonString = tagsData;
+            realizouMigracao = true;
+          } else {
+            throw Exception('Falha nas tags.');
+          }
         }
         _savedTags = List<String>.from(json.decode(tagsJsonString));
       }
 
-      // Se passou por uma migração, salva imediatamente no novo formato blindado
-      if (accountsData != null || tagsData != null) {
-        _saveAccounts();
-        _saveGlobalTags();
+      // Só grava logo no arranque se realmente atualizou o ficheiro antigo.
+      if (realizouMigracao) {
+        await _saveAccounts(force: true);
+        await _saveGlobalTags(force: true);
       }
 
     } catch (e) {
-      debugPrint('Erro ao carregar/desencriptar dados: $e');
+      debugPrint('🚨 ERRO CRÍTICO AO LER O COFRE: $e');
+      _isDatabaseCorrupted = true; // ATIVA A TRAVA DE SOBREPOSIÇÃO
       _accounts = [];
       _savedTags = [];
     } finally {
@@ -106,7 +122,11 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveAccounts() async {
+  Future<void> _saveAccounts({bool force = false}) async {
+    // Se a aplicação deu erro de leitura na inicialização, IGNORA A GRAVAÇÃO.
+    // Isto impede que o utilizador grave um ficheiro vazio em cima dos seus dados reais.
+    if (_isDatabaseCorrupted && !force) return;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final masterKey = await _getInternalMasterKey();
@@ -117,11 +137,13 @@ class AccountManager extends ChangeNotifier {
       
       await prefs.setString(_storageKey, encryptedData);
     } catch (e) {
-      debugPrint('Erro crítico ao encriptar o cofre: $e');
+      debugPrint('Erro ao salvar banco de dados: $e');
     }
   }
 
-  Future<void> _saveGlobalTags() async {
+  Future<void> _saveGlobalTags({bool force = false}) async {
+    if (_isDatabaseCorrupted && !force) return;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final masterKey = await _getInternalMasterKey();
@@ -132,11 +154,11 @@ class AccountManager extends ChangeNotifier {
       
       await prefs.setString(_savedTagsKey, encryptedData);
     } catch (e) {
-      debugPrint('Erro ao salvar tags encriptadas: $e');
+      debugPrint('Erro ao salvar tags globais: $e');
     }
   }
 
-  // --- LÓGICA DE NEGÓCIO DO APP ---
+  // --- O RESTO MANTÉM-SE INTACTO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
@@ -248,7 +270,6 @@ class AccountManager extends ChangeNotifier {
     }).toList();
   }
 
-  // Exportar para fora do aparelho usa a senha que o usuário digitar (mantido como estava)
   String exportData(String password) {
     try {
       final jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
