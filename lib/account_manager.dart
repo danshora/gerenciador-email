@@ -8,27 +8,22 @@ import 'account.dart';
 
 class AccountManager extends ChangeNotifier {
   static const String _storageKey = 'vaporwave_accounts';
+  static const String _storageKeyFallback = 'vaporwave_accounts_backup'; // Cofre de Paraquedas
   static const String _savedTagsKey = 'vaporwave_global_tags'; 
+  static const String _savedTagsKeyFallback = 'vaporwave_tags_backup'; 
   static const String _premiumKey = 'vaporwave_is_premium'; 
   static const String _internalKeyName = 'vapor_hardware_master_key'; 
   
   final _iv = enc.IV.fromLength(16);
   
-  // 🛡️ CORREÇÃO 1: Forçar persistência de hardware no Android. 
-  // Impede que o sistema operativo "esqueça" a chave quando a RAM é limpa.
-  final _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
-  );
+  // Chave estática de emergência (Oculta no código). 
+  // Salva a vida dos dados caso o Android apague o Keystore de Hardware.
+  final enc.Key _fallbackKey = enc.Key.fromUtf8('VaporManagerCyberVaultF4llb4ckK3');
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
   bool _isLoading = true;
   bool _isPremium = false; 
-
-  // 🛡️ CORREÇÃO 3: Trava contra sobreposição.
-  bool _isDatabaseCorrupted = false;
 
   List<Account> get accounts {
     final favs = _accounts.where((a) => a.isFavorite).toList();
@@ -44,13 +39,31 @@ class AccountManager extends ChangeNotifier {
     _loadAccounts();
   }
 
+  // Busca a chave no hardware. Tenta ler nas configurações antigas para resgatar dados perdidos.
   Future<enc.Key> _getInternalMasterKey() async {
-    String? base64Key = await _secureStorage.read(key: _internalKeyName);
+    String? base64Key;
+    
+    // Tentativa 1: Formato padrão sem opções
+    try {
+      base64Key = await const FlutterSecureStorage().read(key: _internalKeyName);
+    } catch (_) {}
+
+    // Tentativa 2: Formato da nossa última atualização que pode ter ocultado a chave
+    if (base64Key == null) {
+      try {
+        base64Key = await const FlutterSecureStorage(
+          aOptions: AndroidOptions(encryptedSharedPreferences: true)
+        ).read(key: _internalKeyName);
+      } catch (_) {}
+    }
+
+    // Se o Android realmente destruiu tudo, gera uma nova chave mestre do zero
     if (base64Key == null) {
       final secureRandom = enc.Key.fromSecureRandom(32);
       base64Key = secureRandom.base64;
-      await _secureStorage.write(key: _internalKeyName, value: base64Key);
+      await const FlutterSecureStorage().write(key: _internalKeyName, value: base64Key);
     }
+    
     return enc.Key.fromBase64(base64Key);
   }
 
@@ -63,57 +76,94 @@ class AccountManager extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
+      
       final masterKey = await _getInternalMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
 
       bool realizouMigracao = false;
 
-      // 1. CARREGAR CONTAS
-      final String? accountsData = prefs.getString(_storageKey);
-      if (accountsData != null) {
-        String jsonString;
+      // ==========================================
+      // 1. CARREGAR CONTAS COM RESGATE AUTOMÁTICO
+      // ==========================================
+      String? jsonString;
+      final String? encryptedData = prefs.getString(_storageKey);
+      
+      // A. Tenta ler a nível Militar (Hardware)
+      if (encryptedData != null) {
         try {
-          jsonString = encrypter.decrypt64(accountsData, iv: _iv);
-        } catch (e) {
-          // 🛡️ CORREÇÃO 2: Só migra se tiver a certeza de que é um texto limpo antigo (começa com "[")
-          if (accountsData.trim().startsWith('[')) {
-            jsonString = accountsData;
-            realizouMigracao = true;
-            debugPrint('Migrando banco de contas para encriptado...');
-          } else {
-            throw Exception('Falha na chave Mestra. Dados inacessíveis.');
-          }
+          jsonString = encrypter.decrypt64(encryptedData, iv: _iv);
+        } catch (_) {
+          debugPrint('Falha no Keystore. Tentando Resgate...');
         }
+      }
+
+      // B. Se falhou, aciona o Cofre de Paraquedas
+      if (jsonString == null) {
+        final String? fallbackData = prefs.getString(_storageKeyFallback);
+        if (fallbackData != null) {
+          try {
+            jsonString = fallbackEncrypter.decrypt64(fallbackData, iv: _iv);
+            realizouMigracao = true; // Força a re-gravação no novo Keystore reparado
+            debugPrint('DADOS DE CONTAS RESGATADOS COM SUCESSO!');
+          } catch (_) {}
+        }
+      }
+
+      // C. Se AINDA falhou, tenta ler como texto limpo (caso seja um utilizador da primeiríssima versão)
+      if (jsonString == null && encryptedData != null) {
+        if (encryptedData.trim().startsWith('[')) {
+          jsonString = encryptedData;
+          realizouMigracao = true;
+        }
+      }
+
+      if (jsonString != null) {
         final List<dynamic> decodedList = json.decode(jsonString);
         _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
       }
 
-      // 2. CARREGAR TAGS
+      // ==========================================
+      // 2. CARREGAR TAGS COM RESGATE AUTOMÁTICO
+      // ==========================================
+      String? tagsJsonString;
       final String? tagsData = prefs.getString(_savedTagsKey);
+
       if (tagsData != null) {
-        String tagsJsonString;
         try {
           tagsJsonString = encrypter.decrypt64(tagsData, iv: _iv);
-        } catch (e) {
-          if (tagsData.trim().startsWith('[')) {
-            tagsJsonString = tagsData;
+        } catch (_) {}
+      }
+
+      if (tagsJsonString == null) {
+        final String? tagsFallback = prefs.getString(_savedTagsKeyFallback);
+        if (tagsFallback != null) {
+          try {
+            tagsJsonString = fallbackEncrypter.decrypt64(tagsFallback, iv: _iv);
             realizouMigracao = true;
-          } else {
-            throw Exception('Falha nas tags.');
-          }
+          } catch (_) {}
         }
+      }
+
+      if (tagsJsonString == null && tagsData != null) {
+        if (tagsData.trim().startsWith('[')) {
+          tagsJsonString = tagsData;
+          realizouMigracao = true;
+        }
+      }
+
+      if (tagsJsonString != null) {
         _savedTags = List<String>.from(json.decode(tagsJsonString));
       }
 
-      // Só grava logo no arranque se realmente atualizou o ficheiro antigo.
+      // Se fizemos algum resgate, salva novamente para atualizar o Keystore falhado
       if (realizouMigracao) {
-        await _saveAccounts(force: true);
-        await _saveGlobalTags(force: true);
+        await _saveAccounts();
+        await _saveGlobalTags();
       }
 
     } catch (e) {
-      debugPrint('🚨 ERRO CRÍTICO AO LER O COFRE: $e');
-      _isDatabaseCorrupted = true; // ATIVA A TRAVA DE SOBREPOSIÇÃO
+      debugPrint('Erro extremo de inicialização: $e');
       _accounts = [];
       _savedTags = [];
     } finally {
@@ -122,43 +172,49 @@ class AccountManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveAccounts({bool force = false}) async {
-    // Se a aplicação deu erro de leitura na inicialização, IGNORA A GRAVAÇÃO.
-    // Isto impede que o utilizador grave um ficheiro vazio em cima dos seus dados reais.
-    if (_isDatabaseCorrupted && !force) return;
-
+  Future<void> _saveAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final masterKey = await _getInternalMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
-      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
+      // 1. Salva no Cofre Militar Principal (Hardware)
+      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       await prefs.setString(_storageKey, encryptedData);
+      
+      // 2. Salva no Cofre de Paraquedas (Software)
+      final String fallbackData = fallbackEncrypter.encrypt(jsonString, iv: _iv).base64;
+      await prefs.setString(_storageKeyFallback, fallbackData);
+
     } catch (e) {
-      debugPrint('Erro ao salvar banco de dados: $e');
+      debugPrint('Erro ao salvar contas: $e');
     }
   }
 
-  Future<void> _saveGlobalTags({bool force = false}) async {
-    if (_isDatabaseCorrupted && !force) return;
-
+  Future<void> _saveGlobalTags() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final masterKey = await _getInternalMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final fallbackEncrypter = enc.Encrypter(enc.AES(_fallbackKey));
       
       final String jsonString = json.encode(_savedTags);
-      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
+      final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       await prefs.setString(_savedTagsKey, encryptedData);
+
+      final String fallbackData = fallbackEncrypter.encrypt(jsonString, iv: _iv).base64;
+      await prefs.setString(_savedTagsKeyFallback, fallbackData);
+
     } catch (e) {
-      debugPrint('Erro ao salvar tags globais: $e');
+      debugPrint('Erro ao salvar tags: $e');
     }
   }
 
-  // --- O RESTO MANTÉM-SE INTACTO ---
+  // --- LÓGICA DE NEGÓCIO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
