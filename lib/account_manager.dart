@@ -1,15 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  // Mudança para V7 para criar um registro totalmente limpo e imune a erros do passado
-  static const String _storageKey = 'vaporwave_vault_final_v7'; 
-  static const String _savedTagsKey = 'vaporwave_tags_final_v7'; 
-  static const String _premiumKey = 'vaporwave_premium_final_v7'; 
+  // Mudança para V8 para criar uma base de dados totalmente isolada e limpa
+  static const String _storageKey = 'vapor_vault_final_v8.json'; 
+  static const String _savedTagsKey = 'vapor_tags_final_v8.json'; 
+  static const String _premiumKey = 'vaporwave_premium_final_v8'; 
   
   final _iv = enc.IV.fromLength(16);
   
@@ -35,74 +37,79 @@ class AccountManager extends ChangeNotifier {
     _loadAllData();
   }
 
+  Future<String> _getAppDirectory() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
   enc.Key _getKeyFromPassword(String password) {
     final salted = password + 'VaporManagerCyberVaultSecretK3y!';
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
-  // --- LEITURA DIRETA DO SISTEMA ---
+  // --- LEITURA DIRETA E BLINDADA DO DISCO ---
   Future<void> _loadAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
       
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
+      final dirPath = await _getAppDirectory();
 
-      // 1. CARREGAR COFRE DE CONTAS
-      final String? encryptedAccounts = prefs.getString(_storageKey);
-      if (encryptedAccounts != null && encryptedAccounts.isNotEmpty) {
-        try {
-          final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
-          final List<dynamic> decodedList = json.decode(jsonString);
-          
-          final List<Account> loadedAccounts = [];
-          for (var item in decodedList) {
-            if (item is Map<String, dynamic>) {
-              try {
-                loadedAccounts.add(Account.fromMap(item));
-              } catch (_) {}
-            }
+      // 1. CARREGAR CONTAS DO DISCO
+      final accountsFile = File('$dirPath/$_storageKey');
+      if (await accountsFile.exists()) {
+        final encryptedAccounts = await accountsFile.readAsString();
+        if (encryptedAccounts.isNotEmpty) {
+          try {
+            final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
+            final List<dynamic> decodedList = json.decode(jsonString);
+            _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
+          } catch (e) {
+            debugPrint('Erro ao descriptografar contas: $e');
           }
-          _accounts = loadedAccounts;
-        } catch (e) {
-          debugPrint('Erro de decodificação no cofre de contas: $e');
         }
       }
 
-      // 2. CARREGAR COFRE DE TAGS
-      final String? encryptedTags = prefs.getString(_savedTagsKey);
-      if (encryptedTags != null && encryptedTags.isNotEmpty) {
-        try {
-          final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
-          _savedTags = List<String>.from(json.decode(tagsJsonString));
-        } catch (e) {
-          debugPrint('Erro de decodificação no cofre de tags: $e');
+      // 2. CARREGAR TAGS DO DISCO
+      final tagsFile = File('$dirPath/$_savedTagsKey');
+      if (await tagsFile.exists()) {
+        final encryptedTags = await tagsFile.readAsString();
+        if (encryptedTags.isNotEmpty) {
+          try {
+            final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
+            _savedTags = List<String>.from(json.decode(tagsJsonString));
+          } catch (e) {
+            debugPrint('Erro ao descriptografar tags: $e');
+          }
         }
       }
 
     } catch (e) {
-      debugPrint('Erro crítico no carregamento de dados: $e');
+      debugPrint('Erro crítico no carregamento físico: $e');
     } finally {
       _isLoading = false; 
       notifyListeners();
     }
   }
 
-  // --- GRAVAÇÃO COMPACTA E IMEDIATA NO SISTEMA ---
+  // --- GRAVAÇÃO INVIOLÁVEL COM FLUSH DE HARDWARE ---
   Future<void> _saveAccounts() async {
     if (_isLoading) return; 
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
+      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      // Grava a String encriptada diretamente na tabela nativa estável do Android
-      await prefs.setString(_storageKey, encryptedData);
+      final accountsFile = File('$dirPath/$_storageKey');
+      
+      // flush: true obriga o telemóvel a salvar fisicamente no chip de memória AGORA
+      await accountsFile.writeAsString(encryptedData, flush: true);
     } catch (e) {
-      debugPrint('Erro ao salvar contas no sistema: $e');
+      debugPrint('Erro ao salvar contas no disco: $e');
     }
   }
 
@@ -110,15 +117,16 @@ class AccountManager extends ChangeNotifier {
     if (_isLoading) return; 
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final encrypter = enc.Encrypter(enc.AES(_masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
+      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_savedTags);
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      await prefs.setString(_savedTagsKey, encryptedData);
+      final tagsFile = File('$dirPath/$_savedTagsKey');
+      await tagsFile.writeAsString(encryptedData, flush: true);
     } catch (e) {
-      debugPrint('Erro ao salvar tags no sistema: $e');
+      debugPrint('Erro ao salvar tags no disco: $e');
     }
   }
 
