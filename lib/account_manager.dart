@@ -2,18 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Mantido apenas para o estado do Premium
+import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  static const String _accountsFileName = 'vaporwave_accounts_v4.json'; 
-  static const String _tagsFileName = 'vaporwave_global_tags_v4.json'; 
-  static const String _softwareKeyName = 'vapor_software_master_key_v4.key'; 
-  static const String _premiumKey = 'vaporwave_is_premium_v4'; 
+  // Mudança para V5 para ignorar qualquer resíduo corrompido das tentativas anteriores
+  static const String _storageKey = 'vaporwave_accounts_v5.json'; 
+  static const String _savedTagsKey = 'vaporwave_global_tags_v5.json'; 
+  static const String _premiumKey = 'vaporwave_is_premium_v5'; 
   
   final _iv = enc.IV.fromLength(16);
+  
+  // 🛡️ CHAVE MESTRE ESTÁTICA EM DART (Exatamente 32 bytes / caracteres)
+  // Sendo estática, o Android pode reiniciar o telemóvel que a chave NUNCA desaparece.
+  final enc.Key _masterKey = enc.Key.fromUtf8('VaporManagerStaticMasterKey32Bit');
   
   List<Account> _accounts = [];
   List<String> _savedTags = []; 
@@ -34,28 +38,9 @@ class AccountManager extends ChangeNotifier {
     _loadAllData();
   }
 
-  // --- NÚCLEO DE FICHEIROS FÍSICOS ---
-
-  // Retorna a pasta segura e invisível da aplicação no telemóvel
   Future<String> _getAppDirectory() async {
     final directory = await getApplicationDocumentsDirectory();
     return directory.path;
-  }
-
-  // Lê ou cria a Chave Mestra Física
-  Future<enc.Key> _getMasterKey() async {
-    final dirPath = await _getAppDirectory();
-    final keyFile = File('$dirPath/$_softwareKeyName');
-
-    if (await keyFile.exists()) {
-      final base64Key = await keyFile.readAsString();
-      return enc.Key.fromBase64(base64Key);
-    } else {
-      final secureRandom = enc.Key.fromSecureRandom(32);
-      final base64Key = secureRandom.base64;
-      await keyFile.writeAsString(base64Key);
-      return enc.Key.fromBase64(base64Key);
-    }
   }
 
   enc.Key _getKeyFromPassword(String password) {
@@ -63,18 +48,17 @@ class AccountManager extends ChangeNotifier {
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
-  // --- LEITURA ABSOLUTA ---
+  // --- LEITURA DO FICHEIRO FÍSICO ---
   Future<void> _loadAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
       
-      final masterKey = await _getMasterKey();
-      final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey));
       final dirPath = await _getAppDirectory();
 
       // 1. CARREGAR CONTAS
-      final accountsFile = File('$dirPath/$_accountsFileName');
+      final accountsFile = File('$dirPath/$_storageKey');
       if (await accountsFile.exists()) {
         try {
           final encryptedAccounts = await accountsFile.readAsString();
@@ -82,46 +66,45 @@ class AccountManager extends ChangeNotifier {
           final List<dynamic> decodedList = json.decode(jsonString);
           _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
         } catch (e) {
-          debugPrint('Falha ao descriptografar contas físicas: $e');
+          debugPrint('Erro na decodificação das contas: $e');
         }
       }
 
       // 2. CARREGAR TAGS
-      final tagsFile = File('$dirPath/$_tagsFileName');
+      final tagsFile = File('$dirPath/$_savedTagsKey');
       if (await tagsFile.exists()) {
         try {
           final encryptedTags = await tagsFile.readAsString();
           final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
           _savedTags = List<String>.from(json.decode(tagsJsonString));
         } catch (e) {
-          debugPrint('Falha ao descriptografar tags físicas: $e');
+          debugPrint('Erro na decodificação das tags: $e');
         }
       }
 
     } catch (e) {
-      debugPrint('Erro extremo na leitura física: $e');
+      debugPrint('Erro geral de leitura: $e');
     } finally {
       _isLoading = false; 
       notifyListeners();
     }
   }
 
-  // --- GRAVAÇÃO ABSOLUTA ---
+  // --- GRAVAÇÃO NO FICHEIRO FÍSICO ---
   Future<void> _saveAccounts() async {
     if (_isLoading) return; 
 
     try {
-      final masterKey = await _getMasterKey();
-      final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey));
       final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      final accountsFile = File('$dirPath/$_accountsFileName');
+      final accountsFile = File('$dirPath/$_storageKey');
       await accountsFile.writeAsString(encryptedData);
     } catch (e) {
-      debugPrint('Erro ao gravar contas físicas: $e');
+      debugPrint('Erro ao escrever ficheiro de contas: $e');
     }
   }
 
@@ -129,21 +112,20 @@ class AccountManager extends ChangeNotifier {
     if (_isLoading) return; 
 
     try {
-      final masterKey = await _getMasterKey();
-      final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final encrypter = enc.Encrypter(enc.AES(_masterKey));
       final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_savedTags);
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      final tagsFile = File('$dirPath/$_tagsFileName');
+      final tagsFile = File('$dirPath/$_savedTagsKey');
       await tagsFile.writeAsString(encryptedData);
     } catch (e) {
-      debugPrint('Erro ao gravar tags físicas: $e');
+      debugPrint('Erro ao escrever ficheiro de tags: $e');
     }
   }
 
-  // --- LÓGICA DE NEGÓCIO INTACTA ---
+  // --- LÓGICA DE NEGÓCIO ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
