@@ -1,15 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Mantido apenas para o estado do Premium
 import 'package:encrypt/encrypt.dart' as enc;
 
 import 'account.dart'; 
 
 class AccountManager extends ChangeNotifier {
-  static const String _storageKey = 'vaporwave_accounts_v3'; 
-  static const String _savedTagsKey = 'vaporwave_global_tags_v3'; 
-  static const String _premiumKey = 'vaporwave_is_premium_v3'; 
-  static const String _softwareKeyName = 'vapor_software_master_key_v3'; 
+  static const String _accountsFileName = 'vaporwave_accounts_v4.json'; 
+  static const String _tagsFileName = 'vaporwave_global_tags_v4.json'; 
+  static const String _softwareKeyName = 'vapor_software_master_key_v4.key'; 
+  static const String _premiumKey = 'vaporwave_is_premium_v4'; 
   
   final _iv = enc.IV.fromLength(16);
   
@@ -29,20 +31,31 @@ class AccountManager extends ChangeNotifier {
   bool get isPremium => _isPremium;
 
   AccountManager() {
-    _loadAccounts();
+    _loadAllData();
   }
 
-  // --- O NOVO COFRE DE SOFTWARE ---
-  Future<enc.Key> _getMasterKey(SharedPreferences prefs) async {
-    String? base64Key = prefs.getString(_softwareKeyName);
-    
-    // Se não existir chave, cria uma nova de 32 bytes e guarda-a
-    if (base64Key == null) {
+  // --- NÚCLEO DE FICHEIROS FÍSICOS ---
+
+  // Retorna a pasta segura e invisível da aplicação no telemóvel
+  Future<String> _getAppDirectory() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  // Lê ou cria a Chave Mestra Física
+  Future<enc.Key> _getMasterKey() async {
+    final dirPath = await _getAppDirectory();
+    final keyFile = File('$dirPath/$_softwareKeyName');
+
+    if (await keyFile.exists()) {
+      final base64Key = await keyFile.readAsString();
+      return enc.Key.fromBase64(base64Key);
+    } else {
       final secureRandom = enc.Key.fromSecureRandom(32);
-      base64Key = secureRandom.base64;
-      await prefs.setString(_softwareKeyName, base64Key);
+      final base64Key = secureRandom.base64;
+      await keyFile.writeAsString(base64Key);
+      return enc.Key.fromBase64(base64Key);
     }
-    return enc.Key.fromBase64(base64Key);
   }
 
   enc.Key _getKeyFromPassword(String password) {
@@ -50,59 +63,65 @@ class AccountManager extends ChangeNotifier {
     return enc.Key.fromUtf8(salted.substring(0, 32));
   }
 
-  Future<void> _loadAccounts() async {
+  // --- LEITURA ABSOLUTA ---
+  Future<void> _loadAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
       
-      final masterKey = await _getMasterKey(prefs);
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final dirPath = await _getAppDirectory();
 
       // 1. CARREGAR CONTAS
-      final String? encryptedAccounts = prefs.getString(_storageKey);
-      if (encryptedAccounts != null) {
+      final accountsFile = File('$dirPath/$_accountsFileName');
+      if (await accountsFile.exists()) {
         try {
+          final encryptedAccounts = await accountsFile.readAsString();
           final jsonString = encrypter.decrypt64(encryptedAccounts, iv: _iv);
           final List<dynamic> decodedList = json.decode(jsonString);
           _accounts = decodedList.map((item) => Account.fromMap(item as Map<String, dynamic>)).toList();
         } catch (e) {
-          debugPrint('Falha ao descriptografar contas: $e');
+          debugPrint('Falha ao descriptografar contas físicas: $e');
         }
       }
 
       // 2. CARREGAR TAGS
-      final String? encryptedTags = prefs.getString(_savedTagsKey);
-      if (encryptedTags != null) {
+      final tagsFile = File('$dirPath/$_tagsFileName');
+      if (await tagsFile.exists()) {
         try {
+          final encryptedTags = await tagsFile.readAsString();
           final tagsJsonString = encrypter.decrypt64(encryptedTags, iv: _iv);
           _savedTags = List<String>.from(json.decode(tagsJsonString));
         } catch (e) {
-          debugPrint('Falha ao descriptografar tags: $e');
+          debugPrint('Falha ao descriptografar tags físicas: $e');
         }
       }
 
     } catch (e) {
-      debugPrint('Erro extremo na leitura: $e');
+      debugPrint('Erro extremo na leitura física: $e');
     } finally {
       _isLoading = false; 
       notifyListeners();
     }
   }
 
+  // --- GRAVAÇÃO ABSOLUTA ---
   Future<void> _saveAccounts() async {
-    if (_isLoading) return; // Impede que grave por cima durante a inicialização
+    if (_isLoading) return; 
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final masterKey = await _getMasterKey(prefs);
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_accounts.map((a) => a.toMap()).toList());
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      await prefs.setString(_storageKey, encryptedData);
+      final accountsFile = File('$dirPath/$_accountsFileName');
+      await accountsFile.writeAsString(encryptedData);
     } catch (e) {
-      debugPrint('Erro ao gravar contas: $e');
+      debugPrint('Erro ao gravar contas físicas: $e');
     }
   }
 
@@ -110,20 +129,21 @@ class AccountManager extends ChangeNotifier {
     if (_isLoading) return; 
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final masterKey = await _getMasterKey(prefs);
+      final masterKey = await _getMasterKey();
       final encrypter = enc.Encrypter(enc.AES(masterKey));
+      final dirPath = await _getAppDirectory();
       
       final String jsonString = json.encode(_savedTags);
       final String encryptedData = encrypter.encrypt(jsonString, iv: _iv).base64;
       
-      await prefs.setString(_savedTagsKey, encryptedData);
+      final tagsFile = File('$dirPath/$_tagsFileName');
+      await tagsFile.writeAsString(encryptedData);
     } catch (e) {
-      debugPrint('Erro ao gravar tags: $e');
+      debugPrint('Erro ao gravar tags físicas: $e');
     }
   }
 
-  // --- LÓGICA DE NEGÓCIO ---
+  // --- LÓGICA DE NEGÓCIO INTACTA ---
 
   Future<void> togglePremium() async {
     _isPremium = !_isPremium;
