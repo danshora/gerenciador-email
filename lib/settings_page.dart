@@ -205,4 +205,301 @@ class ThemesSubPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Single
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
+            const SizedBox(height: AppSpacing.md),
+            
+            // Temas Free
+            _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
+            _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
+            const SizedBox(height: AppSpacing.xl),
+
+            // Temas Premium
+            Text('TEMAS PREMIUM', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.neonYellow)),
+            const SizedBox(height: AppSpacing.md),
+            _buildPremiumThemes(context, manager.isPremium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// SUB-PÁGINA: BACKUP
+// ==========================================================
+class BackupSubPage extends StatefulWidget {
+  const BackupSubPage({super.key});
+
+  @override
+  State<BackupSubPage> createState() => _BackupSubPageState();
+}
+
+class _BackupSubPageState extends State<BackupSubPage> {
+  final _importController = TextEditingController();
+
+  @override
+  void dispose() {
+    _importController.dispose();
+    super.dispose();
+  }
+
+  void _showPasswordDialog({required String title, required String buttonText, required Function(String) onSubmit}) {
+    final pwController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: VaporwaveColors.surfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md), 
+          side: BorderSide(color: VaporwaveColors.neonYellow, width: 2)
+        ),
+        title: Text(title, style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Digite uma senha para trancar/destrancar este backup:', style: GoogleFonts.chakraPetch(color: Colors.white70)),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: pwController,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Sua senha secreta...',
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                filled: true, 
+                fillColor: VaporwaveColors.surface,
+                prefixIcon: Icon(Icons.key, color: VaporwaveColors.neonYellow),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm), 
+                  borderSide: BorderSide(color: VaporwaveColors.neonPurple)
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm), 
+                  borderSide: BorderSide(color: VaporwaveColors.neonYellow)
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow),
+            onPressed: () {
+              final pw = pwController.text.trim();
+              if (pw.isNotEmpty) {
+                Navigator.pop(context);
+                onSubmit(pw);
+              }
+            },
+            child: Text(buttonText, style: TextStyle(color: VaporwaveColors.surfaceVariant, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportData(BuildContext context) {
+    _showPasswordDialog(
+      title: 'SENHA DE EXPORTAÇÃO',
+      buttonText: 'GERAR BACKUP',
+      onSubmit: (password) {
+        final data = context.read<AccountManager>().exportData(password);
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: VaporwaveColors.surfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md), 
+              side: BorderSide(color: VaporwaveColors.neonPink, width: 2)
+            ),
+            title: Text('COFRE TRANCADO', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Este código só pode ser aberto com a senha que você acabou de criar:', style: GoogleFonts.chakraPetch(color: Colors.white)),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  height: 150,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: VaporwaveColors.surface, 
+                    borderRadius: BorderRadius.circular(AppRadius.sm), 
+                    border: Border.all(color: VaporwaveColors.neonPurple)
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(data, style: const TextStyle(color: Colors.white70, fontSize: 12))
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context), 
+                child: Text('FECHAR', style: TextStyle(color: VaporwaveColors.neonCyan))
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: data));
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: const Text('Dados copiados!'), backgroundColor: VaporwaveColors.neonGreen)
+                  );
+                },
+                icon: const Icon(Icons.copy), 
+                label: const Text('COPIAR'),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  void _importData(BuildContext context) {
+    final data = _importController.text.trim();
+    if (data.isEmpty) return;
+    _showPasswordDialog(
+      title: 'SENHA DE RESTAURAÇÃO',
+      buttonText: 'DESTRANCAR',
+      onSubmit: (password) {
+        final success = context.read<AccountManager>().importData(data, password);
+        if (success) {
+          _importController.clear();
+          FocusScope.of(context).unfocus();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Backup restaurado!'), backgroundColor: VaporwaveColors.neonGreen)
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Senha incorreta ou erro.'), backgroundColor: VaporwaveColors.neonRed)
+          );
+        }
+      }
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+    final textColor = isLight ? Colors.black : Colors.white;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('BACKUP', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonCyan),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'SISTEMA DE BACKUP', 
+              textAlign: TextAlign.center, 
+              style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              decoration: BoxDecoration(
+                boxShadow: neonGlowPink, 
+                borderRadius: BorderRadius.circular(AppRadius.md)
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () => _exportData(context),
+                icon: const Icon(Icons.lock_outline),
+                label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            TextField(
+              controller: _importController,
+              maxLines: 4,
+              style: TextStyle(color: textColor, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Cole o código encriptado aqui...', 
+                filled: true, 
+                fillColor: VaporwaveColors.surfaceVariant, 
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md), 
+                  borderSide: BorderSide.none
+                )
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ElevatedButton.icon(
+              onPressed: () => _importData(context),
+              icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
+              label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: VaporwaveColors.neonYellow, 
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// SUB-PÁGINA: DEV (SISTEMA)
+// ==========================================================
+class DevSubPage extends StatelessWidget {
+  const DevSubPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final manager = context.watch<AccountManager>();
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+    final textColor = isLight ? Colors.black : Colors.white;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('DEV & SISTEMA', style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonYellow),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: VaporwaveColors.surfaceVariant, 
+                borderRadius: BorderRadius.circular(AppRadius.md), 
+                border: Border.all(color: VaporwaveColors.neonPurple)
+              ),
+              child: SwitchListTile(
+                title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                subtitle: Text('Libera 10 tags globais e temas premium.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                value: manager.isPremium,
+                activeColor: VaporwaveColors.neonYellow,
+                onChanged: (bool value) {
+                  manager.togglePremium();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
