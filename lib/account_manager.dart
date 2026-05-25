@@ -12,6 +12,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
   static const String _vaultFile = 'vapor_bunker_accounts.dat';
   static const String _tagsFile = 'vapor_bunker_tags.dat';
   static const String _premiumKey = 'vapor_bunker_premium';
+  static const String _devKey = 'vapor_bunker_dev';
 
   // Chaves blindadas (EXATAMENTE 16 e 32 bytes)
   final _iv = enc.IV.fromUtf8('VaporwaveInitVec'); 
@@ -20,6 +21,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
   List<Account> _accounts = [];
   List<String> _savedTags = [];
   bool _isPremium = false;
+  bool _isDevUnlocked = false; // NOVO: Persistência do Modo Dev
   bool _isLoaded = false;
   String? _sysDir;
 
@@ -32,6 +34,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
   List<String> get savedTags => _savedTags;
   bool get isLoading => !_isLoaded;
   bool get isPremium => _isPremium;
+  bool get isDevUnlocked => _isDevUnlocked;
 
   AccountManager() {
     WidgetsBinding.instance.addObserver(this);
@@ -48,7 +51,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      _nukeSave(); // Grava tudo fisicamente antes do Android conseguir matar o app
+      _nukeSave(); 
     }
   }
 
@@ -99,10 +102,11 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
 
       final prefs = await SharedPreferences.getInstance();
       _isPremium = prefs.getBool(_premiumKey) ?? false;
+      _isDevUnlocked = prefs.getBool(_devKey) ?? false;
 
       final encrypter = enc.Encrypter(enc.AES(_masterKey, mode: enc.AESMode.cbc));
 
-      // 1. LER CONTAS (Prioridade ao ficheiro físico, fallback para SharedPreferences)
+      // 1. LER CONTAS 
       String? accData;
       try {
         final file = File('$_sysDir/$_vaultFile');
@@ -150,26 +154,22 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
       final accData = encrypter.encrypt(json.encode(accList), iv: _iv).base64;
       final tagsData = encrypter.encrypt(json.encode(_savedTags), iv: _iv).base64;
 
-      // 1. Backups invisíveis na nuvem local do Android
       SharedPreferences.getInstance().then((prefs) {
         prefs.setString('backup_acc_v11', accData);
         prefs.setString('backup_tags_v11', tagsData);
       });
 
-      // 2. FORÇA BRUTA: Escrita Atómica Síncrona no Hardware
       if (_sysDir != null) {
-        // Grava as Contas
         final accFile = File('$_sysDir/$_vaultFile');
         final raf1 = accFile.openSync(mode: FileMode.write);
         raf1.writeStringSync(accData);
-        raf1.flushSync(); // <- O COMANDO QUE OBRIGA O CHIP A GUARDAR OS DADOS AGORA
+        raf1.flushSync(); 
         raf1.closeSync();
 
-        // Grava as Tags
         final tagsFile = File('$_sysDir/$_tagsFile');
         final raf2 = tagsFile.openSync(mode: FileMode.write);
         raf2.writeStringSync(tagsData);
-        raf2.flushSync(); // <- O COMANDO QUE OBRIGA O CHIP A GUARDAR OS DADOS AGORA
+        raf2.flushSync(); 
         raf2.closeSync();
       }
     } catch (_) {}
@@ -194,6 +194,14 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
       }
       _nukeSave();
     }
+    notifyListeners();
+  }
+  
+  // NOVO: Destravar modo desenvolvedor e salvar no disco
+  Future<void> unlockDevMode() async {
+    _isDevUnlocked = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_devKey, true);
     notifyListeners();
   }
 
@@ -225,7 +233,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
 
   void addAccount(Account account) {
     _accounts.insert(0, account);
-    _nukeSave(); // Salva e trava o celular instantaneamente
+    _nukeSave();
     notifyListeners();
   }
 
@@ -233,7 +241,7 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     final index = _accounts.indexWhere((a) => a.id == updatedAccount.id);
     if (index != -1) {
       _accounts[index] = updatedAccount;
-      _nukeSave(); // Salva e trava o celular instantaneamente
+      _nukeSave(); 
       notifyListeners();
     }
   }
@@ -332,18 +340,17 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // ==========================================================
-  // FUNÇÃO NOVA: RESET TOTAL PARA TESTES
-  // ==========================================================
   Future<void> factoryReset() async {
     _accounts.clear();
     _savedTags.clear();
     _isPremium = false;
+    _isDevUnlocked = false; // Tranca o Dev novamente
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, false);
+    await prefs.setBool(_devKey, false); // Tranca na memória
     
-    _nukeSave(); // Ao salvar listas vazias, o arquivo físico é limpo.
+    _nukeSave(); 
     notifyListeners();
   }
 }
