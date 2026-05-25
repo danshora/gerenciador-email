@@ -137,11 +137,11 @@ class ThemesSubPage extends StatelessWidget {
         _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary, isLocked: !isPremium),
         _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary, isLocked: !isPremium),
         
-        // Novos Temas
+        // Novos Temas com Cores Atualizadas!
         const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFF74C337), isLocked: !isPremium),
+        _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFFFF8DA1), isLocked: !isPremium),
         _buildThemeButton(context, 'Tech Noir (B&W)', 'noir', Colors.white, const Color(0xFF888888), isLocked: !isPremium),
-        _buildThemeButton(context, 'Grape Fusion', 'grape', const Color(0xFFE0B0FF), const Color(0xFFF0F0D0), isLocked: !isPremium),
+        _buildThemeButton(context, 'Grape Fusion', 'grape', const Color(0xFFD896FF), const Color(0xFF9D4EDD), isLocked: !isPremium),
       ],
     );
 
@@ -381,63 +381,3 @@ class _BackupSubPageState extends State<BackupSubPage> {
             TextField(
               controller: _importController,
               maxLines: 4,
-              style: TextStyle(color: textColor, fontSize: 12),
-              decoration: InputDecoration(hintText: 'Cole o código encriptado aqui...', filled: true, fillColor: VaporwaveColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none)),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ElevatedButton.icon(
-              onPressed: () => _importData(context),
-              icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
-              label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
-              style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ==========================================================
-// SUB-PÁGINA: DEV (SISTEMA)
-// ==========================================================
-class DevSubPage extends StatelessWidget {
-  const DevSubPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final manager = context.watch<AccountManager>();
-    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
-    final textColor = isLight ? Colors.black : Colors.white;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('DEV & SISTEMA', style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonYellow),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            Container(
-              decoration: BoxDecoration(color: VaporwaveColors.surfaceVariant, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: VaporwaveColors.neonPurple)),
-              child: SwitchListTile(
-                title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
-                subtitle: Text('Libera 10 tags globais e temas premium.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
-                value: manager.isPremium,
-                activeColor: VaporwaveColors.neonYellow,
-                onChanged: (bool value) {
-                  manager.togglePremium();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
