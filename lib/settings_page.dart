@@ -124,10 +124,10 @@ class ThemesSubPage extends StatelessWidget {
               child: Text(
                 title, 
                 style: GoogleFonts.orbitron(
-                  color: primary, // <-- CORREÇÃO AQUI: A cor da letra agora é a cor primária do botão
+                  color: primary, 
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   shadows: [
-                    Shadow(color: primary.withValues(alpha: 0.4), blurRadius: 4), // Efeito Neon leve no texto
+                    Shadow(color: primary.withValues(alpha: 0.4), blurRadius: 4), 
                   ]
                 )
               )
@@ -147,7 +147,6 @@ class ThemesSubPage extends StatelessWidget {
         _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary, isLocked: !isPremium),
         _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary, isLocked: !isPremium),
         
-        // Novos Temas com Cores Atualizadas!
         const SizedBox(height: AppSpacing.sm),
         _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFFFF8DA1), isLocked: !isPremium),
         _buildThemeButton(context, 'Tech Noir (B&W)', 'noir', Colors.white, const Color(0xFF888888), isLocked: !isPremium),
@@ -215,12 +214,10 @@ class ThemesSubPage extends StatelessWidget {
             Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
             const SizedBox(height: AppSpacing.md),
             
-            // Temas Free
             _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
             _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
             const SizedBox(height: AppSpacing.xl),
 
-            // Temas Premium
             Text('TEMAS PREMIUM', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.neonYellow)),
             const SizedBox(height: AppSpacing.md),
             _buildPremiumThemes(context, manager.isPremium),
@@ -459,10 +456,76 @@ class _BackupSubPageState extends State<BackupSubPage> {
 }
 
 // ==========================================================
-// SUB-PÁGINA: DEV (SISTEMA)
+// SUB-PÁGINA: DEV (SISTEMA) - Nova Lógica de Acesso
 // ==========================================================
-class DevSubPage extends StatelessWidget {
+class DevSubPage extends StatefulWidget {
   const DevSubPage({super.key});
+
+  @override
+  State<DevSubPage> createState() => _DevSubPageState();
+}
+
+class _DevSubPageState extends State<DevSubPage> {
+  bool _isDevUnlocked = false;
+
+  void _showDevKeyDialog() {
+    final keyController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: VaporwaveColors.surfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md), 
+          side: BorderSide(color: VaporwaveColors.neonRed, width: 2)
+        ),
+        title: Text('MODO DESENVOLVEDOR', style: GoogleFonts.orbitron(color: VaporwaveColors.neonRed)),
+        content: TextField(
+          controller: keyController,
+          obscureText: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Digite a chave de acesso...',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            filled: true, 
+            fillColor: VaporwaveColors.surface,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.sm), 
+              borderSide: BorderSide(color: VaporwaveColors.neonPurple)
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.sm), 
+              borderSide: BorderSide(color: VaporwaveColors.neonRed)
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonRed),
+            onPressed: () {
+              if (keyController.text.trim() == 'heaWSvcTPLccA8SzNeGv5zW3') {
+                Navigator.pop(context);
+                setState(() => _isDevUnlocked = true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: const Text('Modo Desenvolvedor Ativado!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen)
+                );
+              } else {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: const Text('Acesso Negado: Chave Incorreta!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonRed)
+                );
+              }
+            },
+            child: const Text('AUTENTICAR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,24 +544,138 @@ class DevSubPage extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            
+            // ============================================
+            // CAIXA VERMELHA - Ativar Modo Desenvolvedor
+            // ============================================
             Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.xl),
               decoration: BoxDecoration(
                 color: VaporwaveColors.surfaceVariant, 
                 borderRadius: BorderRadius.circular(AppRadius.md), 
-                border: Border.all(color: VaporwaveColors.neonPurple)
+                border: Border.all(
+                  color: _isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
+                  width: 2
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed).withValues(alpha: 0.3), 
+                    blurRadius: 8, 
+                    spreadRadius: 1
+                  )
+                ]
               ),
-              child: SwitchListTile(
-                title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
-                subtitle: Text('Libera 10 tags globais e temas premium.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
-                value: manager.isPremium,
-                activeColor: VaporwaveColors.neonYellow,
-                onChanged: (bool value) {
-                  manager.togglePremium();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
-                },
+              child: ListTile(
+                leading: Icon(
+                  _isDevUnlocked ? Icons.developer_mode : Icons.lock_outline, 
+                  color: _isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
+                  size: 32
+                ),
+                title: Text(
+                  _isDevUnlocked ? 'MODO DEV ATIVO' : 'ATIVAR MODO DESENVOLVEDOR', 
+                  style: GoogleFonts.orbitron(color: textColor, fontWeight: FontWeight.bold)
+                ),
+                subtitle: Text('Acesso restrito à engenharia.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                trailing: _isDevUnlocked 
+                  ? Icon(Icons.check_circle, color: VaporwaveColors.neonGreen) 
+                  : Icon(Icons.key, color: VaporwaveColors.neonRed),
+                onTap: _isDevUnlocked ? null : _showDevKeyDialog,
               ),
             ),
+
+            // ============================================
+            // CAIXAS VERDES - Opções (Aparecem só se ativo)
+            // ============================================
+            if (_isDevUnlocked) ...[
+              
+              // OPÇÃO 1: Modo Premium
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: VaporwaveColors.surfaceVariant, 
+                  borderRadius: BorderRadius.circular(AppRadius.md), 
+                  border: Border.all(color: VaporwaveColors.neonGreen, width: 1.5)
+                ),
+                child: SwitchListTile(
+                  title: Text('MODO PREMIUM (SIMULAÇÃO)', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Libera 10 tags globais e temas premium.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                  value: manager.isPremium,
+                  activeColor: VaporwaveColors.neonGreen,
+                  secondary: Icon(Icons.workspace_premium, color: VaporwaveColors.neonGreen),
+                  onChanged: (bool value) {
+                    manager.togglePremium();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.', style: const TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen)
+                    );
+                  },
+                ),
+              ),
+
+              // OPÇÃO 2: Reset App (Para Testes)
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: VaporwaveColors.surfaceVariant, 
+                  borderRadius: BorderRadius.circular(AppRadius.md), 
+                  border: Border.all(color: VaporwaveColors.neonGreen, width: 1.5)
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.warning_amber_rounded, color: VaporwaveColors.neonGreen, size: 28),
+                  title: Text('RESET APP (FACTORY RESET)', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Apaga todas as contas, tags e configurações.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                  trailing: Icon(Icons.delete_forever, color: VaporwaveColors.neonGreen),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: VaporwaveColors.surfaceVariant,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide(color: VaporwaveColors.neonRed, width: 2)),
+                        title: Text('ATENÇÃO: PERIGO', style: GoogleFonts.orbitron(color: VaporwaveColors.neonRed, fontWeight: FontWeight.bold)),
+                        content: const Text('Isto apagará TODO o cofre permanentemente. Continuar?', style: TextStyle(color: Colors.white)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonCyan))),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonRed),
+                            onPressed: () {
+                              manager.factoryReset();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: const Text('App resetado com sucesso!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen)
+                              );
+                            },
+                            child: const Text('RESETAR TUDO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      )
+                    );
+                  },
+                ),
+              ),
+
+              // OPÇÃO 3: WIP (Work in Progress)
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: VaporwaveColors.surfaceVariant, 
+                  borderRadius: BorderRadius.circular(AppRadius.md), 
+                  border: Border.all(color: VaporwaveColors.neonGreen, width: 1.5)
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.construction, color: VaporwaveColors.neonGreen, size: 28),
+                  title: Text('WIP (WORK IN PROGRESS)', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Módulo em desenvolvimento futuro.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                  trailing: Icon(Icons.science, color: VaporwaveColors.neonGreen),
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: const Text('Em breve...', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonCyan)
+                    );
+                  },
+                ),
+              ),
+
+            ]
           ],
         ),
       ),
