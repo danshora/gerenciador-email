@@ -7,14 +7,231 @@ import 'package:google_fonts/google_fonts.dart';
 import 'account_manager.dart';
 import 'theme.dart';
 
-class SettingsPage extends StatefulWidget {
+// ==========================================================
+// TELA PRINCIPAL (MENU DE BOTÕES)
+// ==========================================================
+class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
+  Widget _buildMenuButton(BuildContext context, String title, IconData icon, Color neonColor, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          decoration: BoxDecoration(
+            color: VaporwaveColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: neonColor, width: 2),
+            boxShadow: [
+              BoxShadow(color: neonColor.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1)
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: neonColor, size: 32),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.orbitron(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: neonColor.withValues(alpha: 0.7), size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('SETUP', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: AppSpacing.md),
+            _buildMenuButton(
+              context,
+              'TEMAS',
+              Icons.palette,
+              VaporwaveColors.neonPink,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemesSubPage())),
+            ),
+            _buildMenuButton(
+              context,
+              'BACKUP',
+              Icons.security,
+              VaporwaveColors.neonCyan,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupSubPage())),
+            ),
+            _buildMenuButton(
+              context,
+              'DEV',
+              Icons.terminal,
+              VaporwaveColors.neonYellow,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DevSubPage())),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+// ==========================================================
+// SUB-PÁGINA: TEMAS
+// ==========================================================
+class ThemesSubPage extends StatelessWidget {
+  const ThemesSubPage({super.key});
+
+  Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary, {bool isLocked = false}) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isSelected = themeProvider.currentTheme == themeKey;
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+
+    return InkWell(
+      onTap: isLocked ? null : () => themeProvider.changeTheme(themeKey),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: VaporwaveColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: isSelected ? primary : Colors.transparent, width: 2),
+          boxShadow: isSelected ? [BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)] : [],
+        ),
+        child: Row(
+          children: [
+            Container(width: 20, height: 20, decoration: BoxDecoration(color: primary, shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+            Container(width: 20, height: 20, decoration: BoxDecoration(color: secondary, shape: BoxShape.circle)),
+            const SizedBox(width: 16),
+            Expanded(child: Text(title, style: GoogleFonts.orbitron(color: isSelected ? (isLight ? Colors.black : Colors.white) : (isLight ? Colors.black54 : Colors.white70), fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))),
+            if (isSelected) Icon(Icons.check_circle, color: primary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumThemes(BuildContext context, bool isPremium) {
+    Widget themesList = Column(
+      children: [
+        _buildThemeButton(context, 'Outrun Laranja', 'outrun', VaporwaveColors.neonRed, VaporwaveColors.neonPurple, isLocked: !isPremium),
+        _buildThemeButton(context, 'AQUA', 'aqua', VaporwaveColors.aquaPrimary, VaporwaveColors.aquaSecondary, isLocked: !isPremium),
+        _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary, isLocked: !isPremium),
+        _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary, isLocked: !isPremium),
+        
+        // Novos Temas
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFF74C337), isLocked: !isPremium),
+        _buildThemeButton(context, 'Tech Noir (B&W)', 'noir', Colors.white, const Color(0xFF888888), isLocked: !isPremium),
+        _buildThemeButton(context, 'Grape Fusion', 'grape', const Color(0xFFE0B0FF), const Color(0xFFF0F0D0), isLocked: !isPremium),
+      ],
+    );
+
+    if (isPremium) return themesList;
+
+    return Stack(
+      children: [
+        themesList,
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_outline, color: VaporwaveColors.neonYellow, size: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        'PREMIUM NECESSÁRIO',
+                        style: GoogleFonts.orbitron(
+                          color: VaporwaveColors.neonYellow,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final manager = context.watch<AccountManager>();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('TEMAS', style: GoogleFonts.orbitron(color: VaporwaveColors.neonPink, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonPink),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
+            const SizedBox(height: AppSpacing.md),
+            
+            // Temas Free
+            _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
+            _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
+            const SizedBox(height: AppSpacing.xl),
+
+            // Temas Premium
+            Text('TEMAS PREMIUM', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.neonYellow)),
+            const SizedBox(height: AppSpacing.md),
+            _buildPremiumThemes(context, manager.isPremium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// SUB-PÁGINA: BACKUP
+// ==========================================================
+class BackupSubPage extends StatefulWidget {
+  const BackupSubPage({super.key});
+
+  @override
+  State<BackupSubPage> createState() => _BackupSubPageState();
+}
+
+class _BackupSubPageState extends State<BackupSubPage> {
   final _importController = TextEditingController();
 
   @override
@@ -23,21 +240,14 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  void _showPasswordDialog({
-    required String title,
-    required String buttonText,
-    required Function(String) onSubmit,
-  }) {
+  void _showPasswordDialog({required String title, required String buttonText, required Function(String) onSubmit}) {
     final pwController = TextEditingController();
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: VaporwaveColors.surfaceVariant,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(color: VaporwaveColors.neonYellow, width: 2),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md), side: BorderSide(color: VaporwaveColors.neonYellow, width: 2)),
         title: Text(title, style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -51,8 +261,7 @@ class _SettingsPageState extends State<SettingsPage> {
               decoration: InputDecoration(
                 hintText: 'Sua senha secreta...',
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                filled: true,
-                fillColor: VaporwaveColors.surface,
+                filled: true, fillColor: VaporwaveColors.surface,
                 prefixIcon: Icon(Icons.key, color: VaporwaveColors.neonYellow),
                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide(color: VaporwaveColors.neonPurple)),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide(color: VaporwaveColors.neonYellow)),
@@ -139,98 +348,61 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary, {bool isLocked = false}) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final isSelected = themeProvider.currentTheme == themeKey;
+  @override
+  Widget build(BuildContext context) {
     final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+    final textColor = isLight ? Colors.black : Colors.white;
 
-    return InkWell(
-      onTap: isLocked ? null : () => themeProvider.changeTheme(themeKey),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: VaporwaveColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: isSelected ? primary : Colors.transparent, width: 2),
-          boxShadow: isSelected ? [BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)] : [],
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('BACKUP', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonCyan),
+          onPressed: () => Navigator.pop(context),
         ),
-        child: Row(
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 20, height: 20, decoration: BoxDecoration(color: primary, shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Container(width: 20, height: 20, decoration: BoxDecoration(color: secondary, shape: BoxShape.circle)),
-            const SizedBox(width: 16),
-            Expanded(child: Text(title, style: GoogleFonts.orbitron(color: isSelected ? (isLight ? Colors.black : Colors.white) : (isLight ? Colors.black54 : Colors.white70), fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))),
-            if (isSelected) Icon(Icons.check_circle, color: primary),
+            Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: ElevatedButton.icon(
+                onPressed: () => _exportData(context),
+                icon: const Icon(Icons.lock_outline),
+                label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            TextField(
+              controller: _importController,
+              maxLines: 4,
+              style: TextStyle(color: textColor, fontSize: 12),
+              decoration: InputDecoration(hintText: 'Cole o código encriptado aqui...', filled: true, fillColor: VaporwaveColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none)),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ElevatedButton.icon(
+              onPressed: () => _importData(context),
+              icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
+              label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
+              style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildPremiumThemes(BuildContext context, bool isPremium) {
-    Widget themesList = Column(
-      children: [
-        _buildThemeButton(context, 'Outrun Laranja', 'outrun', VaporwaveColors.neonRed, VaporwaveColors.neonPurple, isLocked: !isPremium),
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'AQUA', 'aqua', VaporwaveColors.aquaPrimary, VaporwaveColors.aquaSecondary, isLocked: !isPremium),
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary, isLocked: !isPremium),
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary, isLocked: !isPremium),
-        
-        // Novos Temas
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFF74C337), isLocked: !isPremium),
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'Tech Noir (B&W)', 'noir', Colors.white, const Color(0xFF888888), isLocked: !isPremium),
-        const SizedBox(height: AppSpacing.sm),
-        _buildThemeButton(context, 'Grape Fusion', 'grape', const Color(0xFFE0B0FF), const Color(0xFFF0F0D0), isLocked: !isPremium),
-      ],
-    );
-
-    if (isPremium) {
-      return themesList;
-    }
-
-    // Camada de Blur para usuários Free
-    return Stack(
-      children: [
-        themesList,
-        Positioned.fill(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.lock_outline, color: VaporwaveColors.neonYellow, size: 48),
-                      const SizedBox(height: 8),
-                      Text(
-                        'PREMIUM NECESSÁRIO',
-                        style: GoogleFonts.orbitron(
-                          color: VaporwaveColors.neonYellow,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+// ==========================================================
+// SUB-PÁGINA: DEV (SISTEMA)
+// ==========================================================
+class DevSubPage extends StatelessWidget {
+  const DevSubPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -238,102 +410,29 @@ class _SettingsPageState extends State<SettingsPage> {
     final isLight = VaporwaveColors.currentBrightness == Brightness.light;
     final textColor = isLight ? Colors.black : Colors.white;
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('SETUP', style: GoogleFonts.orbitron(color: VaporwaveColors.neonCyan, fontWeight: FontWeight.bold)),
-          bottom: TabBar(
-            indicatorColor: VaporwaveColors.neonPink,
-            labelColor: VaporwaveColors.neonPink,
-            unselectedLabelColor: isLight ? Colors.black54 : Colors.white54,
-            labelStyle: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(icon: Icon(Icons.palette), text: 'VISUAL'),
-              Tab(icon: Icon(Icons.security), text: 'COFRE'),
-              Tab(icon: Icon(Icons.terminal), text: 'SISTEMA'),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('DEV & SISTEMA', style: GoogleFonts.orbitron(color: VaporwaveColors.neonYellow, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: VaporwaveColors.neonYellow),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: TabBarView(
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
           children: [
-            // --- ABA 1: VISUAL (TEMAS) ---
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
-                  const SizedBox(height: AppSpacing.md),
-                  
-                  // Temas Free
-                  _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Temas Premium (Bloqueados com Blur)
-                  Text('TEMAS PREMIUM', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.neonYellow)),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildPremiumThemes(context, manager.isPremium),
-                ],
-              ),
-            ),
-
-            // --- ABA 2: COFRE (BACKUPS) ---
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('SISTEMA DE BACKUP', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    decoration: BoxDecoration(boxShadow: neonGlowPink, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: ElevatedButton.icon(
-                      onPressed: () => _exportData(context),
-                      icon: const Icon(Icons.lock_outline),
-                      label: Text('EXPORTAR COM SENHA', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  TextField(
-                    controller: _importController,
-                    maxLines: 4,
-                    style: TextStyle(color: textColor, fontSize: 12),
-                    decoration: InputDecoration(hintText: 'Cole o código encriptado aqui...', filled: true, fillColor: VaporwaveColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none)),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ElevatedButton.icon(
-                    onPressed: () => _importData(context),
-                    icon: Icon(Icons.key, color: VaporwaveColors.surfaceVariant),
-                    label: Text('DESTRANCAR E IMPORTAR', style: GoogleFonts.orbitron(fontSize: 14, fontWeight: FontWeight.bold, color: VaporwaveColors.surfaceVariant)),
-                    style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonYellow, padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg)),
-                  ),
-                ],
-              ),
-            ),
-
-            // --- ABA 3: SISTEMA (DEV) ---
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(color: VaporwaveColors.surfaceVariant, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: VaporwaveColors.neonPurple)),
-                    child: SwitchListTile(
-                      title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
-                      subtitle: Text('Libera 10 tags globais e temas.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
-                      value: manager.isPremium,
-                      activeColor: VaporwaveColors.neonYellow,
-                      onChanged: (bool value) {
-                        manager.togglePremium();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
-                      },
-                    ),
-                  ),
-                ],
+            Container(
+              decoration: BoxDecoration(color: VaporwaveColors.surfaceVariant, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: VaporwaveColors.neonPurple)),
+              child: SwitchListTile(
+                title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                subtitle: Text('Libera 10 tags globais e temas premium.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
+                value: manager.isPremium,
+                activeColor: VaporwaveColors.neonYellow,
+                onChanged: (bool value) {
+                  manager.togglePremium();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Premium Ativado!' : 'Free Ativado.')));
+                },
               ),
             ),
           ],
