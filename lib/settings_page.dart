@@ -102,7 +102,6 @@ class ThemesSubPage extends StatelessWidget {
   Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary, {bool isLocked = false}) {
     final themeProvider = context.watch<ThemeProvider>();
     final isSelected = themeProvider.currentTheme == themeKey;
-    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
 
     return InkWell(
       onTap: isLocked ? null : () => themeProvider.changeTheme(themeKey),
@@ -125,8 +124,11 @@ class ThemesSubPage extends StatelessWidget {
               child: Text(
                 title, 
                 style: GoogleFonts.orbitron(
-                  color: isSelected ? (isLight ? Colors.black : Colors.white) : (isLight ? Colors.black54 : Colors.white70), 
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+                  color: primary, // <-- CORREÇÃO AQUI: A cor da letra agora é a cor primária do botão
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  shadows: [
+                    Shadow(color: primary.withValues(alpha: 0.4), blurRadius: 4), // Efeito Neon leve no texto
+                  ]
                 )
               )
             ),
