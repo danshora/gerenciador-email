@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -138,12 +139,13 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary) {
+  Widget _buildThemeButton(BuildContext context, String title, String themeKey, Color primary, Color secondary, {bool isLocked = false}) {
     final themeProvider = context.watch<ThemeProvider>();
     final isSelected = themeProvider.currentTheme == themeKey;
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
 
     return InkWell(
-      onTap: () => themeProvider.changeTheme(themeKey),
+      onTap: isLocked ? null : () => themeProvider.changeTheme(themeKey),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
@@ -158,7 +160,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(width: 8),
             Container(width: 20, height: 20, decoration: BoxDecoration(color: secondary, shape: BoxShape.circle)),
             const SizedBox(width: 16),
-            Expanded(child: Text(title, style: GoogleFonts.orbitron(color: isSelected ? Colors.white : Colors.white70, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))),
+            Expanded(child: Text(title, style: GoogleFonts.orbitron(color: isSelected ? (isLight ? Colors.black : Colors.white) : (isLight ? Colors.black54 : Colors.white70), fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))),
             if (isSelected) Icon(Icons.check_circle, color: primary),
           ],
         ),
@@ -166,9 +168,75 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildPremiumThemes(BuildContext context, bool isPremium) {
+    Widget themesList = Column(
+      children: [
+        _buildThemeButton(context, 'Outrun Laranja', 'outrun', VaporwaveColors.neonRed, VaporwaveColors.neonPurple, isLocked: !isPremium),
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'AQUA', 'aqua', VaporwaveColors.aquaPrimary, VaporwaveColors.aquaSecondary, isLocked: !isPremium),
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary, isLocked: !isPremium),
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary, isLocked: !isPremium),
+        
+        // Novos Temas
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'Sakura Aesthetic', 'sakura', const Color(0xFFFFB7C5), const Color(0xFF74C337), isLocked: !isPremium),
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'Tech Noir (B&W)', 'noir', Colors.white, const Color(0xFF888888), isLocked: !isPremium),
+        const SizedBox(height: AppSpacing.sm),
+        _buildThemeButton(context, 'Grape Fusion', 'grape', const Color(0xFFE0B0FF), const Color(0xFFF0F0D0), isLocked: !isPremium),
+      ],
+    );
+
+    if (isPremium) {
+      return themesList;
+    }
+
+    // Camada de Blur para usuários Free
+    return Stack(
+      children: [
+        themesList,
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_outline, color: VaporwaveColors.neonYellow, size: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        'PREMIUM NECESSÁRIO',
+                        style: GoogleFonts.orbitron(
+                          color: VaporwaveColors.neonYellow,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<AccountManager>();
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+    final textColor = isLight ? Colors.black : Colors.white;
 
     return DefaultTabController(
       length: 3,
@@ -178,7 +246,7 @@ class _SettingsPageState extends State<SettingsPage> {
           bottom: TabBar(
             indicatorColor: VaporwaveColors.neonPink,
             labelColor: VaporwaveColors.neonPink,
-            unselectedLabelColor: Colors.white54,
+            unselectedLabelColor: isLight ? Colors.black54 : Colors.white54,
             labelStyle: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold),
             tabs: const [
               Tab(icon: Icon(Icons.palette), text: 'VISUAL'),
@@ -197,17 +265,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   Text('INTERFACE E CORES', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 18, fontWeight: FontWeight.bold, color: VaporwaveColors.neonCyan)),
                   const SizedBox(height: AppSpacing.md),
+                  
+                  // Temas Free
                   _buildThemeButton(context, 'Vaporwave Clássico', 'vaporwave', VaporwaveColors.neonPink, VaporwaveColors.neonCyan),
                   const SizedBox(height: AppSpacing.sm),
                   _buildThemeButton(context, 'Cyberpunk Amarelo', 'cyberpunk', VaporwaveColors.neonCyan, VaporwaveColors.neonYellow),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'Outrun Laranja', 'outrun', VaporwaveColors.neonRed, VaporwaveColors.neonPurple),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'AQUA', 'aqua', VaporwaveColors.aquaPrimary, VaporwaveColors.aquaSecondary),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'MATRIX', 'matrix', VaporwaveColors.matrixPrimary, VaporwaveColors.matrixSecondary),
-                  const SizedBox(height: AppSpacing.sm),
-                  _buildThemeButton(context, 'DEEP BLUE', 'deepblue', VaporwaveColors.deepBluePrimary, VaporwaveColors.deepBlueSecondary),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Temas Premium (Bloqueados com Blur)
+                  Text('TEMAS PREMIUM', textAlign: TextAlign.center, style: GoogleFonts.orbitron(fontSize: 16, fontWeight: FontWeight.bold, color: VaporwaveColors.neonYellow)),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildPremiumThemes(context, manager.isPremium),
                 ],
               ),
             ),
@@ -233,7 +301,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   TextField(
                     controller: _importController,
                     maxLines: 4,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(color: textColor, fontSize: 12),
                     decoration: InputDecoration(hintText: 'Cole o código encriptado aqui...', filled: true, fillColor: VaporwaveColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none)),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -255,8 +323,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   Container(
                     decoration: BoxDecoration(color: VaporwaveColors.surfaceVariant, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: VaporwaveColors.neonPurple)),
                     child: SwitchListTile(
-                      title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text('Libera 10 tags globais.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      title: Text('VAPOR PREMIUM', style: GoogleFonts.chakraPetch(color: textColor, fontWeight: FontWeight.bold)),
+                      subtitle: Text('Libera 10 tags globais e temas.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
                       value: manager.isPremium,
                       activeColor: VaporwaveColors.neonYellow,
                       onChanged: (bool value) {
