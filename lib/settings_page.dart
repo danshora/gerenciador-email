@@ -14,6 +14,11 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   Widget _buildMenuButton(BuildContext context, String title, IconData icon, Color neonColor, VoidCallback onTap) {
+    // CORREÇÃO SAKURA: Se for fundo claro, a cor da letra e do ícone ficam mais escuras
+    final isLight = VaporwaveColors.currentBrightness == Brightness.light;
+    final activeColor = isLight ? VaporwaveColors.neonPurple : neonColor;
+    final textColor = isLight ? VaporwaveColors.neonPurple : Colors.white;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: InkWell(
@@ -24,27 +29,27 @@ class SettingsPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: VaporwaveColors.surfaceVariant,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: neonColor, width: 2),
+            border: Border.all(color: activeColor, width: 2),
             boxShadow: [
-              BoxShadow(color: neonColor.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1)
+              BoxShadow(color: activeColor.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1)
             ],
           ),
           child: Row(
             children: [
-              Icon(icon, color: neonColor, size: 32),
+              Icon(icon, color: activeColor, size: 32),
               const SizedBox(width: 20),
               Expanded(
                 child: Text(
                   title,
                   style: GoogleFonts.orbitron(
-                    color: Colors.white,
+                    color: textColor, // Agora aplica a cor certa para dar contraste
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 2.0,
                   ),
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: neonColor.withValues(alpha: 0.7), size: 20),
+              Icon(Icons.arrow_forward_ios, color: activeColor.withValues(alpha: 0.7), size: 20),
             ],
           ),
         ),
@@ -456,24 +461,17 @@ class _BackupSubPageState extends State<BackupSubPage> {
 }
 
 // ==========================================================
-// SUB-PÁGINA: DEV (SISTEMA) - Nova Lógica de Acesso
+// SUB-PÁGINA: DEV (SISTEMA) - Atualizado para persistência
 // ==========================================================
-class DevSubPage extends StatefulWidget {
+class DevSubPage extends StatelessWidget {
   const DevSubPage({super.key});
 
-  @override
-  State<DevSubPage> createState() => _DevSubPageState();
-}
-
-class _DevSubPageState extends State<DevSubPage> {
-  bool _isDevUnlocked = false;
-
-  void _showDevKeyDialog() {
+  void _showDevKeyDialog(BuildContext context, AccountManager manager) {
     final keyController = TextEditingController();
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: VaporwaveColors.surfaceVariant,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md), 
@@ -501,20 +499,20 @@ class _DevSubPageState extends State<DevSubPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), 
+            onPressed: () => Navigator.pop(dialogContext), 
             child: Text('CANCELAR', style: TextStyle(color: VaporwaveColors.neonPink))
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonRed),
             onPressed: () {
               if (keyController.text.trim() == 'heaWSvcTPLccA8SzNeGv5zW3') {
-                Navigator.pop(context);
-                setState(() => _isDevUnlocked = true);
+                Navigator.pop(dialogContext);
+                manager.unlockDevMode(); // <--- CHAMA A FUNÇÃO PARA SALVAR NA MEMÓRIA!
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: const Text('Modo Desenvolvedor Ativado!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen)
                 );
               } else {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: const Text('Acesso Negado: Chave Incorreta!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonRed)
                 );
@@ -530,6 +528,8 @@ class _DevSubPageState extends State<DevSubPage> {
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<AccountManager>();
+    final isDevUnlocked = manager.isDevUnlocked; // Lê direto da memória!
+    
     final isLight = VaporwaveColors.currentBrightness == Brightness.light;
     final textColor = isLight ? Colors.black : Colors.white;
 
@@ -556,12 +556,12 @@ class _DevSubPageState extends State<DevSubPage> {
                 color: VaporwaveColors.surfaceVariant, 
                 borderRadius: BorderRadius.circular(AppRadius.md), 
                 border: Border.all(
-                  color: _isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
+                  color: isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
                   width: 2
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (_isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed).withValues(alpha: 0.3), 
+                    color: (isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed).withValues(alpha: 0.3), 
                     blurRadius: 8, 
                     spreadRadius: 1
                   )
@@ -569,26 +569,26 @@ class _DevSubPageState extends State<DevSubPage> {
               ),
               child: ListTile(
                 leading: Icon(
-                  _isDevUnlocked ? Icons.developer_mode : Icons.lock_outline, 
-                  color: _isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
+                  isDevUnlocked ? Icons.developer_mode : Icons.lock_outline, 
+                  color: isDevUnlocked ? VaporwaveColors.neonGreen : VaporwaveColors.neonRed, 
                   size: 32
                 ),
                 title: Text(
-                  _isDevUnlocked ? 'MODO DEV ATIVO' : 'ATIVAR MODO DESENVOLVEDOR', 
+                  isDevUnlocked ? 'MODO DEV ATIVO' : 'ATIVAR MODO DESENVOLVEDOR', 
                   style: GoogleFonts.orbitron(color: textColor, fontWeight: FontWeight.bold)
                 ),
                 subtitle: Text('Acesso restrito à engenharia.', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12)),
-                trailing: _isDevUnlocked 
+                trailing: isDevUnlocked 
                   ? Icon(Icons.check_circle, color: VaporwaveColors.neonGreen) 
                   : Icon(Icons.key, color: VaporwaveColors.neonRed),
-                onTap: _isDevUnlocked ? null : _showDevKeyDialog,
+                onTap: isDevUnlocked ? null : () => _showDevKeyDialog(context, manager),
               ),
             ),
 
             // ============================================
             // CAIXAS VERDES - Opções (Aparecem só se ativo)
             // ============================================
-            if (_isDevUnlocked) ...[
+            if (isDevUnlocked) ...[
               
               // OPÇÃO 1: Modo Premium
               Container(
@@ -639,7 +639,7 @@ class _DevSubPageState extends State<DevSubPage> {
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: VaporwaveColors.neonRed),
                             onPressed: () {
-                              manager.factoryReset();
+                              manager.factoryReset(); // <--- O Reset também tranca o DEV novamente
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: const Text('App resetado com sucesso!', style: TextStyle(color: Colors.white)), backgroundColor: VaporwaveColors.neonGreen)
