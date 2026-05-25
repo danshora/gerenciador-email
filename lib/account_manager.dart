@@ -331,4 +331,19 @@ class AccountManager extends ChangeNotifier with WidgetsBindingObserver {
       return false;
     }
   }
+
+  // ==========================================================
+  // FUNÇÃO NOVA: RESET TOTAL PARA TESTES
+  // ==========================================================
+  Future<void> factoryReset() async {
+    _accounts.clear();
+    _savedTags.clear();
+    _isPremium = false;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_premiumKey, false);
+    
+    _nukeSave(); // Ao salvar listas vazias, o arquivo físico é limpo.
+    notifyListeners();
+  }
 }
