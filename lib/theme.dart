@@ -18,7 +18,7 @@ class AppRadius {
 }
 
 class VaporwaveColors {
-  static Brightness currentBrightness = Brightness.dark; // NOVO: Controle de Claro/Escuro
+  static Brightness currentBrightness = Brightness.dark; 
   
   static Color background = const Color(0xFF0D0221);
   static Color surface = const Color(0xFF1B0330);
@@ -109,9 +109,9 @@ class VaporwaveColors {
     background = const Color(0xFFFDFDFD);
     surface = const Color(0xFFFFF0F2);
     surfaceVariant = const Color(0xFFFFE4E8);
-    neonPink = const Color(0xFFFFB7C5);
-    neonCyan = const Color(0xFF74C337);
-    neonPurple = const Color(0xFF5D1F33);
+    neonPink = const Color(0xFFFFB7C5); // Rosa Claro (Base Sakura)
+    neonCyan = const Color(0xFFFF8DA1); // Rosa Cerejeira (Substituiu o verde)
+    neonPurple = const Color(0xFF5D1F33); // Cereja Escuro
   }
 
   static void loadNoir() {
@@ -129,9 +129,9 @@ class VaporwaveColors {
     background = const Color(0xFF1A0B2E);
     surface = const Color(0xFF3B1E6D);
     surfaceVariant = const Color(0xFF4C2A85);
-    neonPink = const Color(0xFFE0B0FF);
-    neonCyan = const Color(0xFFF0F0D0);
-    neonPurple = const Color(0xFFFFAB91);
+    neonPink = const Color(0xFFD896FF); // Roxo Claro / Lavanda Neon
+    neonCyan = const Color(0xFF9D4EDD); // Roxo Vibrante Médio
+    neonPurple = const Color(0xFF5A189A); // Roxo Escuro Profundo
   }
 }
 
