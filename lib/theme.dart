@@ -18,6 +18,8 @@ class AppRadius {
 }
 
 class VaporwaveColors {
+  static Brightness currentBrightness = Brightness.dark; // NOVO: Controle de Claro/Escuro
+  
   static Color background = const Color(0xFF0D0221);
   static Color surface = const Color(0xFF1B0330);
   static Color surfaceVariant = const Color(0xFF2E094F);
@@ -36,6 +38,7 @@ class VaporwaveColors {
   static const Color deepBlueSecondary = Color(0xFF001144);
 
   static void loadVaporwave() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF0D0221);
     surface = const Color(0xFF1B0330);
     surfaceVariant = const Color(0xFF2E094F);
@@ -47,6 +50,7 @@ class VaporwaveColors {
   }
 
   static void loadCyberpunk() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF090909);
     surface = const Color(0xFF1C1C1C);
     surfaceVariant = const Color(0xFF2D2D2D);
@@ -58,6 +62,7 @@ class VaporwaveColors {
   }
 
   static void loadOutrun() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF10002B);
     surface = const Color(0xFF240046);
     surfaceVariant = const Color(0xFF3C096C);
@@ -69,6 +74,7 @@ class VaporwaveColors {
   }
 
   static void loadAqua() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF001F3F);
     surface = const Color(0xFF003366);
     surfaceVariant = const Color(0xFF004A99);
@@ -78,6 +84,7 @@ class VaporwaveColors {
   }
 
   static void loadMatrix() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF000000);
     surface = const Color(0xFF0D140D);
     surfaceVariant = const Color(0xFF1B261B);
@@ -87,12 +94,44 @@ class VaporwaveColors {
   }
 
   static void loadDeepBlue() {
+    currentBrightness = Brightness.dark;
     background = const Color(0xFF000510);
     surface = const Color(0xFF001020);
     surfaceVariant = const Color(0xFF002040);
     neonPink = const Color(0xFF0055FF);
     neonCyan = const Color(0xFF00C3FF);
     neonPurple = const Color(0xFF001144);
+  }
+
+  // --- NOVOS TEMAS AQUI ---
+  static void loadSakura() {
+    currentBrightness = Brightness.light;
+    background = const Color(0xFFFDFDFD);
+    surface = const Color(0xFFFFF0F2);
+    surfaceVariant = const Color(0xFFFFE4E8);
+    neonPink = const Color(0xFFFFB7C5);
+    neonCyan = const Color(0xFF74C337);
+    neonPurple = const Color(0xFF5D1F33);
+  }
+
+  static void loadNoir() {
+    currentBrightness = Brightness.dark;
+    background = const Color(0xFF000000);
+    surface = const Color(0xFF111111);
+    surfaceVariant = const Color(0xFF222222);
+    neonPink = Colors.white;
+    neonCyan = const Color(0xFF888888);
+    neonPurple = Colors.white70;
+  }
+
+  static void loadGrape() {
+    currentBrightness = Brightness.dark;
+    background = const Color(0xFF1A0B2E);
+    surface = const Color(0xFF3B1E6D);
+    surfaceVariant = const Color(0xFF4C2A85);
+    neonPink = const Color(0xFFE0B0FF);
+    neonCyan = const Color(0xFFF0F0D0);
+    neonPurple = const Color(0xFFFFAB91);
   }
 }
 
@@ -136,6 +175,9 @@ class ThemeProvider with ChangeNotifier {
       case 'aqua': VaporwaveColors.loadAqua(); break;
       case 'matrix': VaporwaveColors.loadMatrix(); break;
       case 'deepblue': VaporwaveColors.loadDeepBlue(); break;
+      case 'sakura': VaporwaveColors.loadSakura(); break;
+      case 'noir': VaporwaveColors.loadNoir(); break;
+      case 'grape': VaporwaveColors.loadGrape(); break;
       default: VaporwaveColors.loadVaporwave(); break;
     }
   }
@@ -149,9 +191,11 @@ class ThemeProvider with ChangeNotifier {
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: VaporwaveColors.currentBrightness, // Puxa do tema (Light/Dark)
       scaffoldBackgroundColor: background,
-      colorScheme: ColorScheme.dark(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primary,
+        brightness: VaporwaveColors.currentBrightness,
         primary: primary,
         secondary: secondary,
         surface: surface,
